@@ -33,7 +33,7 @@ class PreparedScoreData:
     candidate_eligibility_mask: np.ndarray
     structure_scores_matrix: np.ndarray
     assembly_scores_matrix: np.ndarray
-    runtime_confidence_by_pair: dict[MatchPairKey, float | None]
+    runtime_confidence_by_pair: dict[MatchPairKey, float]
     file_descriptor_similarity_by_pair: dict[tuple[str, str], float]
 
 

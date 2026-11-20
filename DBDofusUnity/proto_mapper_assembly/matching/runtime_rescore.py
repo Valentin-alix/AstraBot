@@ -28,7 +28,7 @@ class RuntimeCandidateIndexes(NamedTuple):
 
 class RuntimeRescoredScores(NamedTuple):
     scores_matrix: np.ndarray
-    runtime_confidence_by_pair: dict[MatchPairKey, float | None]
+    runtime_confidence_by_pair: dict[MatchPairKey, float]
     rejected_candidate_indexes: list[RuntimeCandidateIndexes]
 
 
@@ -41,7 +41,7 @@ def build_runtime_rescored_scores(
 ) -> RuntimeRescoredScores:
     """Rescore only capture-backed candidates; absent runtime evidence is neutral."""
     rescored_matrix = np.array(scores_matrix, copy=True)
-    runtime_confidence_by_pair: dict[MatchPairKey, float | None] = {}
+    runtime_confidence_by_pair: dict[MatchPairKey, float] = {}
     rejected_candidate_indexes: list[RuntimeCandidateIndexes] = []
     field_mapping_context = FieldMappingContext(
         score_by_pair=build_lazy_score_by_pair_lookup_from_matrix(
@@ -95,7 +95,8 @@ def build_runtime_rescored_scores(
             static_similarity=float(scores_matrix[non_obf_index, obf_index]),
             runtime_confidence=runtime_confidence,
         )
-        runtime_confidence_by_pair[MatchPairKey(obf_cls, non_obf_cls)] = runtime_confidence
+        if runtime_confidence is not None:
+            runtime_confidence_by_pair[MatchPairKey(obf_cls, non_obf_cls)] = runtime_confidence
 
     return RuntimeRescoredScores(rescored_matrix, runtime_confidence_by_pair, rejected_candidate_indexes)
 

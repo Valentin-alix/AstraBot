@@ -1,3 +1,5 @@
+from collections import deque
+
 import numpy as np
 from tqdm import tqdm
 
@@ -102,7 +104,7 @@ def match_signatures_iteratively(
     matches: list[MatchResult] = []
     cached_adjusted_matrix: np.ndarray | None = None
     cached_store_version: int = -1
-    selected_pair_queue: list[SelectedSignaturePair] = []
+    selected_pair_queue: deque[SelectedSignaturePair] = deque()
     progress_desc = f"matching messages ({'roots' if roots_only else 'all'})"
     with tqdm(total=len(available_non_obf_indexes), desc=progress_desc) as progress_bar:
         while available_non_obf_indexes and available_obf_indexes:
@@ -130,7 +132,7 @@ def match_signatures_iteratively(
                 )
                 if not selected_pair_queue:
                     break
-            selected_pair = selected_pair_queue.pop(0)
+            selected_pair = selected_pair_queue.popleft()
 
             if (
                 selected_pair.non_obf_index not in available_non_obf_indexes

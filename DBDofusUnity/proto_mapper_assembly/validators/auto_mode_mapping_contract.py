@@ -80,9 +80,7 @@ def check_auto_mode_mappings(
 ) -> AutoModeMappingAudit:
     mappings = load_game_mappings_document(detailed_mappings_path)
     pinned_pairs = load_pinned_pairs(pinned_pairs_path)
-    entries_by_name = {
-        _normalize_name(entry.full_non_obf_msg_namespace): entry for entry in mappings.root.values()
-    }
+    entries_by_name = {_normalize_name(name): entry for name, entry in mappings.root.items()}
     pins_by_name = {_normalize_name(pair.non_obf): pair for pair in pinned_pairs.pairs}
 
     failures = _AuditFailures()
