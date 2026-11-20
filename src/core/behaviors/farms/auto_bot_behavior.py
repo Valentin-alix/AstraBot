@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
 from threading import RLock
 
@@ -59,7 +59,12 @@ class AutoBotBehavior(RecoverableBehavior):
     _session_activity_plan: SessionActivityPlan | None = field(init=False, default=None)
 
     def start_planned_session(self, session_start: datetime, session_end: datetime) -> None:
+        session_start = max(session_start, datetime.now())
         self.game_state.apply_settings(SettingsService().get().behaviors)
+        if session_start >= session_end:
+            self.clear_planned_session()
+            return
+
         activities: list[SessionActivity] = []
         if self.game_state.settings.do_idle:
             activities.append(SessionActivity.IDLE)
@@ -180,6 +185,8 @@ class AutoBotBehavior(RecoverableBehavior):
         if activity is SessionActivity.IDLE:
             idle_duration = HumanTimingsService().get_timing_session_idle_duration()
             self.logger.info("Taking planned idle break: %.1fmin", idle_duration / 60)
+            break_end = datetime.now() + timedelta(seconds=idle_duration)
+            self.report_status(f"On a break until {break_end:%H:%M}")
             return self.idle_behavior.start(
                 duration=idle_duration,
                 callback=partial(self._on_session_activity_finished, activity),

@@ -3,6 +3,9 @@ import os
 from threading import RLock
 from typing import cast
 
+from ankama_launcher_emulator.controller.bot_storage import BotStorageController
+from ankama_launcher_emulator.controller.proxy import ProxyController
+from ankama_launcher_emulator.controller.schedule_profile import ScheduleProfileController
 from ankama_launcher_emulator.utils.atomic_file import acquire_file_lock, atomic_write_text
 from pydantic import ValidationError
 
@@ -74,3 +77,21 @@ class SettingsService(metaclass=Singleton):
     def update_sonji_key(self, key: str | None) -> None:
         with self._lock:
             self._save(self.get().model_copy(update={"sonji_api_key": key}))
+
+    def delete_schedule(self, profile_id: str) -> None:
+        users = sorted(
+            login for login, record in BotStorageController().get_all_records().items()
+            if profile_id in (record.schedule_profile, record.quarantined_schedule_profile)
+        )
+        if users:
+            raise ValueError("Schedule used by accounts: " + ", ".join(users) + ". Remove these assignments before deleting it.")
+        ScheduleProfileController().remove_profile(profile_id)
+
+    def delete_proxy(self, proxy_id: str) -> None:
+        users = sorted(
+            identifier for identifier, profile in ScheduleProfileController().get_all_profiles().items()
+            if profile.proxy_id == proxy_id
+        )
+        if users:
+            raise ValueError("Proxy used by schedules: " + ", ".join(users) + ". Change their proxy before deleting it.")
+        ProxyController().remove_config(proxy_id)

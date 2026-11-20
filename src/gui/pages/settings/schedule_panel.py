@@ -3,7 +3,7 @@ from ankama_launcher_emulator.controller.schedule_profile import ScheduleProfile
 from ankama_launcher_emulator.interfaces.schedule_profile import PersistedProxy, ScheduleProfile
 from PyQt6.QtCore import pyqtSignal
 
-from src.controller.settings_deletion import delete_schedule
+from src.controller.settings import SettingsService
 from src.gui.pages.settings.settings_panel import SettingsPanel
 from src.gui.pages.settings.schedule_day_editor import ScheduleDayEditor
 
@@ -28,7 +28,7 @@ class ScheduleSettingsPanel(SettingsPanel):
             self.form.addRow(day)
             day.changed.connect(self.queue_save)
         self.selection.selected.connect(self.select)
-        self.bind_deletion(self.selection, delete_schedule, self.changed.emit)
+        self.bind_deletion(self.selection, SettingsService().delete_schedule, self.changed.emit)
 
     def reload(self) -> None:
         def render(result: tuple[dict[str, ScheduleProfile], dict[str, PersistedProxy]]) -> None:

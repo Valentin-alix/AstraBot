@@ -3,7 +3,7 @@ from ankama_launcher_emulator.interfaces.schedule_profile import PersistedProxy,
 from PyQt6.QtCore import pyqtSignal
 from qfluentwidgets import BodyLabel
 
-from src.controller.settings_deletion import delete_proxy
+from src.controller.settings import SettingsService
 from src.gui.pages.settings.settings_panel import SettingsPanel
 
 
@@ -25,7 +25,7 @@ class ProxySettingsPanel(SettingsPanel):
         self.state = BodyLabel("", self)
         self.form.addRow(BodyLabel("Status", self), self.state)
         self.selection.selected.connect(self.select)
-        self.bind_deletion(self.selection, delete_proxy, self.changed.emit)
+        self.bind_deletion(self.selection, SettingsService().delete_proxy, self.changed.emit)
 
     def reload(self) -> None:
         def render(entries: dict[str, PersistedProxy]) -> None:
