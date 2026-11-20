@@ -370,9 +370,9 @@ async def authenticate_next_available_account(
     if profile is None:
         raise ValueError(f"Unknown schedule profile {profile_id}")
     proxy = ProxyController().get_proxy(profile.proxy_id)
-    if proxy.rejected:
+    if proxy is not None and proxy.rejected:
         raise ProxyRejectedError(f"Schedule profile {profile_id} already uses a rejected proxy")
-    return await _authenticate_account(account, build_http_proxy_url(proxy))
+    return await _authenticate_account(account, build_http_proxy_url(proxy) if proxy is not None else None)
 
 
 async def authenticate_available_accounts():

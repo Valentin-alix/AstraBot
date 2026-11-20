@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from pathlib import Path
 
 from ankama_launcher_emulator.controller import bot_storage
 from ankama_launcher_emulator.haapi.haapi import (
@@ -39,22 +38,6 @@ def _make_account(login: str) -> UserAccount:
             )
         ],
     )
-
-
-def _update_password_repeatedly(
-    storage_path: str,
-    login: str,
-    password_prefix: str,
-) -> None:
-    bot_storage.BOTS_STORAGE_PATH = Path(storage_path)
-    storage_controller = bot_storage.BotStorageController()
-    for update_index in range(10):
-        password = f"{password_prefix}-{update_index}"
-        storage_controller.upsert_record(
-            login,
-            create=lambda: BotRecord(email=login, password=password, hardware_id="hw-1"),
-            update=lambda record: setattr(record, "password", password),
-        )
 
 
 class TestAccountInfoRoundTrip(IsolatedLauncherStorageTestCase):

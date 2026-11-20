@@ -116,7 +116,6 @@ class TestSocketProxyConnection:
         lifecycle_events: list[str] = []
         bot_config = MagicMock(schedule_profile="profile-a")
         schedule_profile = ScheduleProfile(
-            name_fr="Profile A",
             proxy_id="proxy-a",
             slots_by_day={},
         )
@@ -156,7 +155,6 @@ class TestSocketProxyConnection:
         manager.bot_by_account_id = {}
         bot_config = MagicMock(schedule_profile="profile-b")
         original_profile = ScheduleProfile(
-            name_fr="Profile A",
             proxy_id="proxy-a",
             slots_by_day={},
         )
@@ -216,8 +214,8 @@ class TestSocketProxyConnection:
             MagicMock(side_effect=[rejected_proxy, healthy_proxy]),
         )
         profiles = {
-            "profile-a": ScheduleProfile(name_fr="A", proxy_id="a", slots_by_day={}),
-            "profile-b": ScheduleProfile(name_fr="B", proxy_id="b", slots_by_day={}),
+            "profile-a": ScheduleProfile(proxy_id="a", slots_by_day={}),
+            "profile-b": ScheduleProfile(proxy_id="b", slots_by_day={}),
         }
         monkeypatch.setattr(
             bot_manager_module.ScheduleProfileController,
@@ -287,8 +285,8 @@ class TestSocketProxyConnection:
             MagicMock(side_effect=[healthy_proxy, rejected_proxy]),
         )
         profiles = {
-            "profile-a": ScheduleProfile(name_fr="A", proxy_id="a", slots_by_day={}),
-            "profile-b": ScheduleProfile(name_fr="B", proxy_id="b", slots_by_day={}),
+            "profile-a": ScheduleProfile(proxy_id="a", slots_by_day={}),
+            "profile-b": ScheduleProfile(proxy_id="b", slots_by_day={}),
         }
         monkeypatch.setattr(
             bot_manager_module.ScheduleProfileController,

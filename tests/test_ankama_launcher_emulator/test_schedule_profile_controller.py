@@ -6,6 +6,14 @@ from ankama_launcher_emulator.interfaces.schedule_profile import ProxyConfig, Sc
 from src.utils.runtime_support import RuntimeSetupError
 
 
+def test_profile_can_be_created_without_name_or_proxy() -> None:
+    controller = ScheduleProfileController()
+    profile = ScheduleProfile(slots_by_day={"0": [TimeSlot(start="08:00", end="10:00")]})
+    controller.save_profile("direct", profile, create=True)
+
+    assert controller.get_profile("direct") == profile
+
+
 def test_profiles_validate_cross_midnight_overlap_and_missing_proxy() -> None:
     ProxyController().save_config(
         "proxy",
@@ -14,7 +22,7 @@ def test_profiles_validate_cross_midnight_overlap_and_missing_proxy() -> None:
     )
     controller = ScheduleProfileController()
     profile = ScheduleProfile(
-        name_fr="Night", proxy_id="proxy", slots_by_day={"6": [TimeSlot(start="23:00", end="02:00")]}
+        proxy_id="proxy", slots_by_day={"6": [TimeSlot(start="23:00", end="02:00")]}
     )
     controller.save_profile("night", profile, create=True)
     overlap = profile.model_copy(

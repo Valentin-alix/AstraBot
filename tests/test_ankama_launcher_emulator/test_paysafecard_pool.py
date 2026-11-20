@@ -76,6 +76,7 @@ def test_payment_outcome_distinguishes_removable_cards(
     assert outcome is expected_outcome
 
 
+@pytest.mark.usefixtures("paysafecard_pool_path")
 def test_pin_additions_preserve_existing_codes_and_reject_invalid_batch() -> None:
     pool = PaysafecardPoolController()
     pool.add_pins(["1111 2222 3333 4444"])

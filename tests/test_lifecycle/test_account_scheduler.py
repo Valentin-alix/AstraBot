@@ -15,7 +15,7 @@ from src.core.config import GlobalSettings
 
 
 def _profile(proxy_id: str) -> ScheduleProfile:
-    return ScheduleProfile(name_fr=proxy_id, proxy_id=proxy_id, slots_by_day={})
+    return ScheduleProfile(proxy_id=proxy_id, slots_by_day={})
 
 
 def _bot_record(email: str, schedule_profile: str | None) -> BotRecord:

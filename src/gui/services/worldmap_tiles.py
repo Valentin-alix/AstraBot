@@ -8,6 +8,7 @@ from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, QThreadPool, pyqt
 from PyQt6.QtGui import QImage
 
 from DBDofusUnity.dofus_unity_reader.models.datas.worldmapsroot import WorldmapsrootItem
+from src.gui.services.decoded_images import decoded_image
 from src.services.icon_process import icon_process
 from src.services.icon_worker import IconRequest, IconResponse
 
@@ -100,9 +101,7 @@ class WorldMapTileCache(QObject):
         if key == (0, 0):
             self.worlds = {world.id: world for world in response.worldmaps or []}
         elif response.pixels:
-            image = QImage(
-                response.pixels, response.width, response.height, QImage.Format.Format_RGBA8888
-            ).copy()
+            image = decoded_image(response)
             self._images[key] = image
             if len(self._images) > 32:
                 self._images.popitem(last=False)
@@ -113,6 +112,7 @@ class WorldMapTileCache(QObject):
     @pyqtSlot()
     def shutdown(self) -> None:
         self._pool.clear()
+        icon_process.close()
         self._pool.waitForDone()
 
 

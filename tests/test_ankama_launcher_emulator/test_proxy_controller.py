@@ -12,6 +12,7 @@ def test_proxy_edits_preserve_rejection_and_runtime_quotas() -> None:
     controller.update_proxy_runtime("proxy", [1, 2], 99)
     controller.save_config("proxy", config.model_copy(update={"host": "new-host"}))
     proxy = controller.get_proxy("proxy")
+    assert proxy is not None
     assert proxy.host == "new-host"
     assert proxy.rejected
     assert proxy.operation_timestamps == [1, 2]

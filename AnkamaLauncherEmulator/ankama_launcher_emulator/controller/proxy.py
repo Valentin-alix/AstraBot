@@ -1,8 +1,4 @@
-from utils.local_json import read_local_model
-from src.utils.runtime_support import RuntimeSetupError
 from threading import RLock
-
-from utils.singleton import Singleton
 
 from ankama_launcher_emulator.consts import PROXIES_STORAGE_PATH
 from ankama_launcher_emulator.interfaces.schedule_profile import (
@@ -14,6 +10,10 @@ from ankama_launcher_emulator.utils.atomic_file import (
     acquire_file_lock,
     atomic_write_text,
 )
+
+from src.utils.runtime_support import RuntimeSetupError
+from utils.local_json import read_local_model
+from utils.singleton import Singleton
 
 
 class ProxyController(metaclass=Singleton):
@@ -28,7 +28,9 @@ class ProxyController(metaclass=Singleton):
     def _save_proxies(self, proxies_file: ProxiesFile) -> None:
         atomic_write_text(PROXIES_STORAGE_PATH, proxies_file.model_dump_json(indent=2))
 
-    def get_proxy(self, proxy_id: str) -> PersistedProxy:
+    def get_proxy(self, proxy_id: str | None) -> PersistedProxy | None:
+        if not proxy_id:
+            return None
         with self._LOCK:
             proxy = self._load_proxies().proxies.get(proxy_id)
             if proxy is None:

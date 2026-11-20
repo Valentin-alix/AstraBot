@@ -131,7 +131,7 @@ class AccountScheduler:
                     f"Unknown schedule profile: {account_profile_id}. Check schedule_profiles.json."
                 )
             account_proxy = self.proxy_controller.get_proxy(account_profile.proxy_id)
-            if account_proxy.rejected:
+            if account_proxy is not None and account_proxy.rejected:
                 logger.info(
                     "account %s uses rejected profile %s, skipping",
                     account.email,
@@ -152,7 +152,7 @@ class AccountScheduler:
             eligible_candidates = [
                 _RegisterOp(profile_id, profile.proxy_id)
                 for profile_id, profile in profiles_by_letter.items()
-                if not self.proxy_controller.get_proxy(profile.proxy_id).rejected
+                if (proxy := self.proxy_controller.get_proxy(profile.proxy_id)) is None or not proxy.rejected
                 if self._pool.has_quota_for(profile.proxy_id, 2, now)
                 if not self._pool.is_register_cooled_down(profile.proxy_id, now)
             ]
@@ -194,6 +194,9 @@ class AccountScheduler:
         rejected_profile = self.schedule_profile_controller.get_profile(profile_id)
         if rejected_profile is None:
             raise ValueError(f"Unknown schedule profile {profile_id}")
+        if not rejected_profile.proxy_id:
+            logger.warning("Proxy rejection reported for direct schedule profile %s", profile_id)
+            return
         self.proxy_controller.record_rejection(rejected_profile.proxy_id)
         generated_account_logins = {
             account.email
@@ -215,7 +218,7 @@ class AccountScheduler:
             healthy_profile_ids = sorted(
                 candidate_profile_id
                 for candidate_profile_id, candidate_profile in profiles.items()
-                if not self.proxy_controller.get_proxy(candidate_profile.proxy_id).rejected
+                if (proxy := self.proxy_controller.get_proxy(candidate_profile.proxy_id)) is None or not proxy.rejected
             )
             for login in sorted(generated_account_logins):
                 available_profile_ids = [

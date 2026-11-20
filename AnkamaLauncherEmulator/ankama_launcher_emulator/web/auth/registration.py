@@ -529,13 +529,14 @@ async def _register_email(
     profile = ScheduleProfileController().get_profile(schedule_profile)
     if profile is None:
         raise ValueError(f"Unknown schedule profile {schedule_profile}")
+    proxy = ProxyController().get_proxy(profile.proxy_id)
     options = RegistrationOptions(
         email=email,
         password=DEFAULT_PASSWORD,
         identity=random_identity(),
         mail_provider=resolve_mail_provider(email),
         schedule_profile=schedule_profile,
-        proxy_url=build_http_proxy_url(ProxyController().get_proxy(profile.proxy_id)),
+        proxy_url=build_http_proxy_url(proxy) if proxy is not None else None,
     )
 
     async def replacement_options_factory(

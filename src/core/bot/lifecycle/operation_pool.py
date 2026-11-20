@@ -24,6 +24,8 @@ class OperationPool:
         self._register_cooldowns = self.proxy_controller.get_register_cooldowns()
 
     def _save_proxy(self, proxy_id: str) -> None:
+        if not proxy_id:
+            return
         self.proxy_controller.update_proxy_runtime(
             proxy_id,
             self._timestamps.get(proxy_id, []),

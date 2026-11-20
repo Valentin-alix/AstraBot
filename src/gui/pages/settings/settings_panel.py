@@ -13,6 +13,7 @@ from src.services.background import run_in_background
 from src.utils.runtime_support import RuntimeSetupError, error_message
 
 logger = logging.getLogger(__name__)
+SAVE_DELAY_MS = 2_000
 
 
 class SettingsPanel(QWidget):
@@ -24,7 +25,7 @@ class SettingsPanel(QWidget):
         self._dirty = False
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
-        self._save_timer.setInterval(600)
+        self._save_timer.setInterval(SAVE_DELAY_MS)
         self._save_timer.timeout.connect(self.flush_save)
         self._deletion_handlers: dict[SettingsOverview, Callable[[str], None]] = {}
         layout = QVBoxLayout(self)
@@ -67,7 +68,6 @@ class SettingsPanel(QWidget):
         widget = LineEdit(self)
         self.form.addRow(BodyLabel(label, self), widget)
         widget.textEdited.connect(self.queue_save)
-        widget.editingFinished.connect(self.flush_save)
         return widget
 
     def combo(self, label: str, items: list[str] | None = None) -> ComboBox:

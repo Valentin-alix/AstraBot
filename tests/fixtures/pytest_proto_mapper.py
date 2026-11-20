@@ -1,6 +1,5 @@
 import uuid
-from collections.abc import Callable, Iterator
-from functools import cached_property
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -13,6 +12,7 @@ from DBDofusUnity.proto_mapper_assembly.runtime import runtime_store
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeDataStore
 from scripts.mapping import export_signature_overrides
 from src.protocol import protocol_game
+from utils.singleton import Singleton
 
 
 @pytest.fixture
@@ -28,21 +28,12 @@ def dump_cs(tmp_path_factory: pytest.TempPathFactory) -> Callable[[str], Path]:
 
 
 @pytest.fixture
-def runtime_data_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[RuntimeDataStore]:
+def runtime_data_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> RuntimeDataStore:
     monkeypatch.setattr(runtime_store, "RUNTIME_DATA_FILE", tmp_path / "instancied_msg_infos.json")
     monkeypatch.setattr(runtime_store, "ENABLE_MSG_CAPTURE", True)
-    instance = RuntimeDataStore()
-    instance._capture_sequence_index = None  # pyright: ignore[reportPrivateUsage]
-    instance._capture_session_id = None  # pyright: ignore[reportPrivateUsage]
-    instance._capture_target_path = None  # pyright: ignore[reportPrivateUsage]
+    monkeypatch.setattr(Singleton, "_instances", {})
     monkeypatch.setattr(protocol_game, "_on_exit", lambda: None)
-    yield instance
-    instance._capture_target_path = None  # pyright: ignore[reportPrivateUsage]
-    instance.path.unlink(missing_ok=True)
-    # Clear singleton cached views so they cannot leak into the next test.
-    for name, attribute in vars(type(instance)).items():
-        if isinstance(attribute, cached_property):
-            instance.__dict__.pop(name, None)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+    return RuntimeDataStore()
 
 
 @pytest.fixture(scope="session")

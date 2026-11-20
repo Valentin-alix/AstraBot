@@ -140,14 +140,10 @@ class MapWorldView(QGraphicsView):
         self.centerOn(self._scene.sceneRect().center())
 
     def drawBackground(self, painter: QPainter | None, rect: QRectF) -> None:
-        super().drawBackground(painter, rect)
         if painter is None:
             return
-        window = self._scene.sceneRect()
-        painter.save()
-        painter.fillRect(window, self.palette().base())
-        self._draw_worldmap(painter, window.intersected(rect))
-        painter.restore()
+        painter.fillRect(rect, self.palette().base())
+        self._draw_worldmap(painter, rect)
 
     def _draw_worldmap(self, painter: QPainter, window: QRectF) -> None:
         if self._current_map is None or self._current_map.worldMap < 0:

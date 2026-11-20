@@ -134,7 +134,7 @@ class BotManager:
             return bot_config
         bot_config_service = BotConfigService()
         proxy = bot_config_service.resolve_bot_proxy(bot_config)
-        if not proxy.rejected:
+        if proxy is None or not proxy.rejected:
             return bot_config
 
         profiles = ScheduleProfileController().get_all_profiles()
@@ -146,7 +146,8 @@ class BotManager:
             profile_id
             for profile_id, profile in profiles.items()
             if profile_id != bot_config.schedule_profile
-            if not ProxyController().get_proxy(profile.proxy_id).rejected
+            if (candidate_proxy := ProxyController().get_proxy(profile.proxy_id)) is None
+            or not candidate_proxy.rejected
         ]
         if healthy_profile_ids:
             target_profile_id = min(
@@ -318,7 +319,7 @@ class BotManager:
                     login,
                     schedule_profile_id,
                 )
-            else:
+            elif schedule_profile.proxy_id:
                 ProxyController().record_rejection(schedule_profile.proxy_id)
                 logger.warning(
                     "Quarantined proxy %s after ban of account %s",

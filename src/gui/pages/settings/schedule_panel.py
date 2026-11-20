@@ -17,9 +17,8 @@ class ScheduleSettingsPanel(SettingsPanel):
             "Each slot must exceed one hour and may cross midnight. Changes preserve active sessions."
         )
         self.entries: dict[str, ScheduleProfile] = {}
-        self.selection = self.overview(["Identifier", "Name", "Proxy", "Time slots"], "New schedule…")
+        self.selection = self.overview(["Identifier", "Proxy", "Time slots"], "New schedule…")
         self.identifier = self.line("Identifier")
-        self.name = self.line("Name")
         self.proxy = self.combo("Proxy")
         self.days = [
             ScheduleDayEditor(day, self)
@@ -36,9 +35,11 @@ class ScheduleSettingsPanel(SettingsPanel):
             profiles, proxies = result
             self.entries = profiles
             self.proxy.clear()
-            self.proxy.addItems(sorted(proxies))
+            self.proxy.addItem("No proxy", userData="")
+            for proxy_id in sorted(proxies):
+                self.proxy.addItem(proxy_id, userData=proxy_id)
             self.selection.set_rows([
-                (identifier, (identifier, profile.name_fr, profile.proxy_id,
+                (identifier, (identifier, profile.proxy_id or "No proxy",
                     "\n".join(
                         f"{day}: " + ", ".join(
                             f"{slot.start}–{slot.end}" + (" (+1 day)" if slot.end < slot.start else "")
@@ -61,20 +62,23 @@ class ScheduleSettingsPanel(SettingsPanel):
         profile = self.entries.get(identifier)
         self.identifier.setText(identifier)
         self.identifier.setReadOnly(profile is not None)
-        self.name.setText(profile.name_fr if profile else "")
-        if profile:
-            if self.proxy.findText(profile.proxy_id) < 0:
-                self.proxy.addItem(profile.proxy_id)
-            self.proxy.setCurrentText(profile.proxy_id)
+        proxy_id = profile.proxy_id if profile else ""
+        index = self.proxy.findData(proxy_id)
+        if index < 0 and proxy_id:
+            self.proxy.addItem(proxy_id, userData=proxy_id)
+            index = self.proxy.count() - 1
+        self.proxy.setCurrentIndex(index)
         for index, widget in enumerate(self.days):
             widget.set_slots(profile.slots_by_day.get(str(index), []) if profile else [])
 
     def save(self) -> None:
         slots = {str(index): widget.values() for index, widget in enumerate(self.days)}
-        profile = ScheduleProfile(
-            name_fr=self.name.text().strip(), proxy_id=self.proxy.currentText(), slots_by_day=slots
-        )
         identifier = self.identifier.text().strip()
+        proxy_id = self.proxy.currentData()
+        profile = ScheduleProfile(
+            proxy_id=proxy_id if isinstance(proxy_id, str) else "",
+            slots_by_day=slots,
+        )
         create = not self.identifier.isReadOnly()
 
         def done(_: None) -> None:

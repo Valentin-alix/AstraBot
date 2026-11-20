@@ -19,8 +19,7 @@ class TimeSlot(BaseModel):
 
 
 class ScheduleProfile(BaseModel):
-    name_fr: str
-    proxy_id: str
+    proxy_id: str = ""
     slots_by_day: dict[str, list[TimeSlot]]
 
 

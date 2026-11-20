@@ -8,6 +8,7 @@ from ankama_launcher_emulator.utils.environment import resolve_dofus_path
 from PyQt6.QtCore import QCoreApplication, QObject, QRunnable, QThreadPool, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QImage
 
+from src.gui.services.decoded_images import decoded_image
 from src.services.icon_process import icon_process
 from src.services.icon_worker import IconRequest
 
@@ -34,9 +35,7 @@ class IconLoader:
                 return QImage()
             if not response.pixels:
                 return QImage()
-            return QImage(
-                response.pixels, response.width, response.height, QImage.Format.Format_RGBA8888
-            ).copy()
+            return decoded_image(response)
         except Exception:
             self._unavailable = True
             logger.warning("Icon decoding process is unavailable", exc_info=True)
@@ -84,6 +83,7 @@ class ItemIconCache(QObject):
     @pyqtSlot()
     def shutdown(self) -> None:
         self._pool.clear()
+        icon_process.close()
         self._pool.waitForDone()
 
     def cached(self, icon_id: int) -> QImage | None:
