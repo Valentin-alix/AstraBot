@@ -44,9 +44,8 @@ def catalog_address(catalog: bytes, guid: str) -> tuple[int, float, int]:
         length = uint(offset - 4)
         if offset + length > len(catalog):
             raise ValueError(f"Truncated catalog string for {guid}")
-        return catalog[offset:offset + length].decode("utf-8")
+        return catalog[offset : offset + length].decode("utf-8")
 
-    # Addressables stores these addresses as a shared prefix and a filename suffix.
     suffix = string(uint(position - 8))
     prefix = uint(position - 4)
     if uint(prefix + 4) != 0xFFFFFFFF:
@@ -62,10 +61,13 @@ class WorldMapBundleReader:
     def __init__(self, game_dir: Path) -> None:
         self._game_dir = game_dir
         self._content = game_dir / "Dofus_Data/StreamingAssets/Content"
-        metadata = list(iter_bundle_data(
-            self._content / "Data/data_assets_worldmapsdataroot.asset.bundle", names={"WorldMapsDataRoot"},
-            game_dir=game_dir,
-        ))
+        metadata = list(
+            iter_bundle_data(
+                self._content / "Data/data_assets_worldmapsdataroot.asset.bundle",
+                names={"WorldMapsDataRoot"},
+                game_dir=game_dir,
+            )
+        )
         if len(metadata) != 1:
             raise ValueError("Expected exactly one WorldMapsDataRoot")
         self.worlds = msgspec.convert(metadata[0][1], type=Worldmapsroot)
@@ -74,9 +76,13 @@ class WorldMapBundleReader:
             raise ValueError("Duplicate worldmap geometry")
         for world in self.worlds:
             if (
-                world.id <= 0 or world.totalWidth <= 0 or world.totalHeight <= 0
-                or not isfinite(world.mapWidth) or not isfinite(world.mapHeight)
-                or world.mapWidth <= 0 or world.mapHeight <= 0
+                world.id <= 0
+                or world.totalWidth <= 0
+                or world.totalHeight <= 0
+                or not isfinite(world.mapWidth)
+                or not isfinite(world.mapHeight)
+                or world.mapWidth <= 0
+                or world.mapHeight <= 0
             ):
                 raise ValueError(f"Invalid worldmap geometry: {world.id}")
         self._sprites: dict[tuple[int, int], ObjectReader[Any]] | None = None

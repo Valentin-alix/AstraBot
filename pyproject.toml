@@ -86,7 +86,8 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--import-mode=importlib",
-    "-p", "no:langsmith_plugin"
+    "-p",
+    "no:langsmith_plugin",
 ]
 
 [tool.ty.environment]
@@ -142,17 +143,17 @@ allowed-unresolved-imports = [
 [tool.ruff]
 target-version = "py315"
 exclude = [
-  "DBDofusUnity/datas",
-  "DBDofusUnity/.venv",
-  "DBDofusUnity/Il2CppInspectorRedux",
-  "DBDofusUnity/protodec",
-  "AnkamaLauncherEmulator/ankama_launcher_emulator/gen_zaap",
-  "AnkamaLauncherEmulator/ankama_launcher_emulator/proxy/login_message*",
-  "**/.venv",
-  "**/datas",
-  "**/node_modules",
-  "**/__pycache__",
-  "**/.*"
+    "DBDofusUnity/datas",
+    "DBDofusUnity/.venv",
+    "DBDofusUnity/Il2CppInspectorRedux",
+    "DBDofusUnity/protodec",
+    "AnkamaLauncherEmulator/ankama_launcher_emulator/gen_zaap",
+    "AnkamaLauncherEmulator/ankama_launcher_emulator/proxy/login_message*",
+    "**/.venv",
+    "**/datas",
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
 ]
 line-length = 110
 
