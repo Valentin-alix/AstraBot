@@ -3,7 +3,6 @@ from pathlib import Path
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
-from DBDofusUnity.proto_mapper_assembly.interfaces.message_pair import MatchPairKey
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPair, PinnedPairsConfig
 from DBDofusUnity.proto_mapper_assembly.matching.workspace import build_matching_workspace
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeDataStore
@@ -59,7 +58,7 @@ def test_group_affinity_cannot_override_incompatible_structure(
     )
     assert scores.file_descriptor_similarity_by_pair[("ContactGroup", "ObfGroup")] > 0
     assert scores.final_scores_matrix[0, 0] == (1.0 if pinned else 0.0)
-    assert scores.rejected_pairs_by_reason[MatchPairKey("obf", "ContactLookRequest")] == "root_oneof_mismatch"
+    assert bool(scores.candidate_eligibility_mask[0, 0]) is pinned
 
 
 @pytest.mark.parametrize("from_server", [True, False])

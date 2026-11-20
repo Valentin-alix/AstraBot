@@ -14,7 +14,6 @@ class SmileysrootItem(Struct, frozen=True, kw_only=True):
     order: int
     gfxId: str
     forPlayers: int
-    triggers: List[str]
     referenceId: int
     categoryId: int
 

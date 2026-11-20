@@ -23,7 +23,6 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.matching import (
     PreparedScoreData,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.matching_inputs import MatchingInputs, MatchingRunConfig
-from DBDofusUnity.proto_mapper_assembly.interfaces.message_pair import MatchPairKey
 from DBDofusUnity.proto_mapper_assembly.matching.runtime_rescore import build_runtime_rescored_scores
 from DBDofusUnity.proto_mapper_assembly.matching.static_scores import (
     apply_pinned_pair_overrides_around_prospective_mask,
@@ -37,17 +36,14 @@ _HANDLER_REGISTRATION_SIMILARITY_WEIGHT = 0.25
 
 _MASKED_AFFINITY_SIGNALS: tuple[MaskedAffinitySignal, ...] = (
     MaskedAffinitySignal(
-        name="handler_cohort",
         weight=0.10,
         build=build_handler_cohort_affinity,
     ),
     MaskedAffinitySignal(
-        name="declaration_order",
         weight=0.15,
         build=build_declaration_order_affinity,
     ),
     MaskedAffinitySignal(
-        name="callee",
         weight=0.15,
         build=build_callee_affinity,
     ),
@@ -87,7 +83,6 @@ def build_prepared_scores(
     )
     final_scores_matrix = runtime_rescored_scores.scores_matrix
     runtime_confidence_by_pair = runtime_rescored_scores.runtime_confidence_by_pair
-    rejected_pairs_by_reason = dict(runtime_rescored_scores.rejected_pairs_by_reason)
 
     file_descriptor_similarity_matrix, file_descriptor_similarity_by_pair = build_file_descriptor_similarity(
         workspace=workspace, base_scores_matrix=static_score_data.static_scores_matrix
@@ -122,17 +117,8 @@ def build_prepared_scores(
         dtype=bool,
     )
     rejected_candidates = requires_oneof[:, None] & ~has_oneof[None, :]
-    final_scores_matrix[rejected_candidates] = 0.0
     candidate_eligibility_mask[rejected_candidates] = False
-    for non_obf_index, non_obf_signature in enumerate(workspace.non_obf_signatures):
-        for obf_index, obf_signature in enumerate(workspace.obf_signatures):
-            if rejected_candidates[non_obf_index, obf_index]:
-                pair = MatchPairKey(obf_signature.message_cls, non_obf_signature.message_cls)
-                rejected_pairs_by_reason.setdefault(pair, "root_oneof_mismatch")
-    for pair in rejected_pairs_by_reason:
-        non_obf_index = workspace.signature_indexes.non_obf_index_by_cls[pair.non_obf_message_cls]
-        obf_index = workspace.signature_indexes.obf_index_by_cls[pair.obf_message_cls]
-        final_scores_matrix[non_obf_index, obf_index] = 0.0
+    for non_obf_index, obf_index in runtime_rescored_scores.rejected_candidate_indexes:
         candidate_eligibility_mask[non_obf_index, obf_index] = False
     final_scores_matrix[~candidate_eligibility_mask] = 0.0
     final_scores_matrix = apply_pinned_pair_overrides_around_prospective_mask(
@@ -153,7 +139,6 @@ def build_prepared_scores(
         assembly_scores_matrix=static_score_data.assembly_scores_matrix,
         runtime_confidence_by_pair=runtime_confidence_by_pair,
         file_descriptor_similarity_by_pair=file_descriptor_similarity_by_pair,
-        rejected_pairs_by_reason=rejected_pairs_by_reason,
     )
 
 

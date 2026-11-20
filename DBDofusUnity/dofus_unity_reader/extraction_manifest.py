@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
 
-PIPELINE_VERSION = "2026-11-14-maps-typed-references-v2"
+PIPELINE_VERSION = "2026-11-20-validator-catalogs-v3"
 
 _HASH_CHUNK_SIZE = 1024 * 1024
 

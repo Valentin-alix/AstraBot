@@ -21,7 +21,6 @@ class SpellstatesrootItem(Struct, frozen=True, kw_only=True):
     invulnerable: int
     cantSwitchPosition: int
     incurable: int
-    effectsIds: List[int]
     icon: str
     iconVisibilityMask: int
     invulnerableMelee: int

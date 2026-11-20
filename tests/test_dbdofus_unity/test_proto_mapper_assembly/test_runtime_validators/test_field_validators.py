@@ -91,6 +91,8 @@ class TestFieldValidators:
         assert is_valid_positive_quantity(100) is True
         assert is_valid_total_quantity(-1) is True
         assert is_valid_type_item(1) is True
+        assert is_valid_type_item(86) is True
+        assert is_valid_type_item(999) is False
         assert is_valid_action_id(10) is True
         assert is_valid_inventory_weight(100) is True
         assert is_valid_grade(1) is True
@@ -167,9 +169,12 @@ class TestFieldValidators:
         assert is_valid_bak_bid_validation(99) is False
 
     def test_bot_message_field_validators_apply_semantic_constraints(self) -> None:
-        sample_values = self._sample_values()
-
-        assert VALIDATORS_ON_FIELD[SpellVariantActivationEvent]["spell_id"](sample_values["spell_id"]) is True
+        reader = DataReader()
+        variant_spell_id = next(iter(reader.variant_spell_ids))
+        other_spell_id = next(spell_id for spell_id in reader.spell_by_id if spell_id not in reader.variant_spell_ids)
+        validate_spell = VALIDATORS_ON_FIELD[SpellVariantActivationEvent]["spell_id"]
+        assert validate_spell(variant_spell_id) is True
+        assert validate_spell(other_spell_id) is False
         assert VALIDATORS_ON_FIELD[ServerMaintenanceEvent]["maintenance_date"]("2026-09-01T05:00:00Z") is True
         assert VALIDATORS_ON_FIELD[ServerMaintenanceEvent]["maintenance_date"]("maintenance") is False
 

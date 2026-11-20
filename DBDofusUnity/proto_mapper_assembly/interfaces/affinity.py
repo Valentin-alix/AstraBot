@@ -26,6 +26,5 @@ class AffinityBuilder(Protocol):
 
 @dataclass(frozen=True)
 class MaskedAffinitySignal:
-    name: str
     weight: float
     build: AffinityBuilder

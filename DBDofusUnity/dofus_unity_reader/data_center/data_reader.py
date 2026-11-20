@@ -6,6 +6,21 @@ from pathlib import Path
 from typing import Any, ClassVar, TypeVar
 
 import msgspec
+from DBDofusUnity.dofus_unity_reader.models.datas.emblemsymbolsroot import Emblemsymbolsroot
+from DBDofusUnity.dofus_unity_reader.models.datas.documentsroot import Documentsroot
+from DBDofusUnity.dofus_unity_reader.models.datas.smileysroot import Smileysroot
+from DBDofusUnity.dofus_unity_reader.models.datas.smileypacksroot import Smileypacksroot
+from DBDofusUnity.dofus_unity_reader.models.datas.interactivesroot import Interactivesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.spellstatesroot import Spellstatesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.havenbagthemesroot import Havenbagthemesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.achievementsroot import Achievementsroot
+from DBDofusUnity.dofus_unity_reader.models.datas.achievementobjectivesroot import Achievementobjectivesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.achievementcategoriesroot import Achievementcategoriesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.challengesroot import Challengesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.emoticonsroot import Emoticonsroot
+from DBDofusUnity.dofus_unity_reader.models.datas.titlesroot import Titlesroot
+from DBDofusUnity.dofus_unity_reader.models.datas.ornamentsroot import Ornamentsroot
+
 import msgspec.json
 from utils.cache import cache
 from utils.singleton import Singleton
@@ -50,6 +65,7 @@ from DBDofusUnity.dofus_unity_reader.models.datas.quest_objectives_root import (
 from DBDofusUnity.dofus_unity_reader.models.datas.quests_root import QuestsRoot, QuestsRootItem
 from DBDofusUnity.dofus_unity_reader.models.datas.queststepsroot import (
     Queststepsroot,
+    QueststepsrootItem,
 )
 from DBDofusUnity.dofus_unity_reader.models.datas.recipe_root import RecipeItem, RecipeRoot
 from DBDofusUnity.dofus_unity_reader.models.datas.serversroot import Serversroot, ServersrootItem
@@ -67,6 +83,20 @@ from DBDofusUnity.dofus_unity_reader.models.datas.sub_areas_root import SubAreas
 from DBDofusUnity.dofus_unity_reader.models.datas.waypoints_root import WaypointsRoot, WaypointsRootItem
 
 FILEPATH_BY_MODEL: dict[Any, str] = {
+    Achievementsroot: "AchievementsDataRoot.json",
+    Achievementobjectivesroot: "AchievementObjectivesDataRoot.json",
+    Achievementcategoriesroot: "AchievementCategoriesDataRoot.json",
+    Challengesroot: "ChallengesDataRoot.json",
+    Emoticonsroot: "EmoticonsDataRoot.json",
+    Titlesroot: "TitlesDataRoot.json",
+    Ornamentsroot: "OrnamentsDataRoot.json",
+    Interactivesroot: "InteractivesDataRoot.json",
+    Spellstatesroot: "SpellStatesDataRoot.json",
+    Havenbagthemesroot: "HavenbagThemesDataRoot.json",
+    Emblemsymbolsroot: "EmblemSymbolsDataRoot.json",
+    Documentsroot: "DocumentsDataRoot.json",
+    Smileysroot: "SmileysDataRoot.json",
+    Smileypacksroot: "SmileyPacksDataRoot.json",
     AreasRoot: "AreasDataRoot.json",
     ItemsRoot: "ItemsDataRoot.json",
     ItemsTypeRoot: "ItemTypesDataRoot.json",
@@ -96,6 +126,16 @@ FILEPATH_BY_MODEL: dict[Any, str] = {
 }
 REQUIRED_DATA_FILENAMES = frozenset(FILEPATH_BY_MODEL.values())
 
+
+def require_data_catalogs() -> None:
+    missing = sorted(name for name in REQUIRED_DATA_FILENAMES if not (DATA_BUNDLES_ROOT / name).is_file())
+    if missing:
+        raise FileNotFoundError(
+            f"Missing game data catalogs: {', '.join(missing)}. "
+            "Refresh them with uv run python -m DBDofusUnity.dofus_unity_reader.get_datas."
+        )
+
+
 _MIN_DUNGEON_MAP_COUNT = 2
 
 
@@ -123,6 +163,83 @@ def _coerce_item_root_item(item: ItemsRootItemStrict) -> ItemsRootItem | None:
 
 @dataclass(frozen=True)
 class DataReader(metaclass=Singleton):
+    @cached_property
+    def emblem_symbol_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Emblemsymbolsroot, Emblemsymbolsroot)}
+
+    @cached_property
+    def document_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Documentsroot, Documentsroot)}
+
+    @cached_property
+    def smiley_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Smileysroot, Smileysroot)}
+
+    @cached_property
+    def smiley_pack_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Smileypacksroot, Smileypacksroot)}
+
+    @cached_property
+    def interactive_type_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Interactivesroot, Interactivesroot)}
+
+    @cached_property
+    def spell_state_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Spellstatesroot, Spellstatesroot)}
+
+    @cached_property
+    def haven_bag_theme_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Havenbagthemesroot, Havenbagthemesroot)}
+
+    @cached_property
+    def variant_spell_ids(self) -> set[int]:
+        return {spell_id for variant in self.spell_variants for spell_id in variant.spellIds}
+
+    @cached_property
+    def achievement_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Achievementsroot, Achievementsroot)}
+
+    @cached_property
+    def achievement_objective_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Achievementobjectivesroot, Achievementobjectivesroot)}
+
+    @cached_property
+    def achievement_category_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Achievementcategoriesroot, Achievementcategoriesroot)}
+
+    @cached_property
+    def challenge_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Challengesroot, Challengesroot)}
+
+    @cached_property
+    def emote_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Emoticonsroot, Emoticonsroot)}
+
+    @cached_property
+    def title_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Titlesroot, Titlesroot)}
+
+    @cached_property
+    def ornament_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Ornamentsroot, Ornamentsroot)}
+
+    @cached_property
+    def quest_step_by_id(self) -> dict[int, QueststepsrootItem]:
+        return {row.id: row for row in _load_model(Queststepsroot, Queststepsroot)}
+
+    @cached_property
+    def quest_objective_pairs(self) -> set[tuple[int, int]]:
+        return {
+            (quest.id, objective_id)
+            for quest in self.quest_by_id.values()
+            for step_id in quest.stepIds
+            for objective_id in self.quest_step_by_id[step_id].objectiveIds
+        }
+
+    @cached_property
+    def item_set_ids(self) -> set[int]:
+        return {row.id for row in _load_model(Itemsetsroot, Itemsetsroot) if row.id is not None}
+
     POSSIBLE_COORD_X: ClassVar[set[int]] = {x for x, _ in MAP_POINT_BY_COORD}
     POSSIBLE_COORD_Y: ClassVar[set[int]] = {y for _, y in MAP_POINT_BY_COORD}
     POSSIBLE_ELEMENT_STATES: ClassVar[set[int]] = {0, 1, 2}
@@ -403,6 +520,11 @@ class DataReader(metaclass=Singleton):
             if name:
                 npc_ids_by_name_dict[name].append(npc.id)
         return npc_ids_by_name_dict
+
+    @cached_property
+    def npc_question_ids(self) -> set[int]:
+        messages = _load_model(NpcMessagesRoot, NpcMessagesRoot)
+        return {message.id for message in messages} | self.npc_message_i18n_by_message_id.keys()
 
     @cached_property
     def npc_reply_i18n_by_reply_id(self) -> dict[int, int]:

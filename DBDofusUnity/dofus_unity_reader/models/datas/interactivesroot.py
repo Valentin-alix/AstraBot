@@ -12,8 +12,6 @@ from msgspec import Struct
 class InteractivesrootItem(Struct, frozen=True, kw_only=True):
     id: int
     nameId: int
-    actionId: int
-    displayTooltip: int
 
 
 Interactivesroot = List[InteractivesrootItem]

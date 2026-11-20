@@ -15,6 +15,7 @@ from DBDofusUnity.datas.protos.non_obf.game.achievement_pb2 import (
     AchievementFinishedInformationEvent,
     AchievementRewardRequest,
     AchievementRewardResultEvent,
+    AchievementsDetailedRequest,
 )
 from DBDofusUnity.datas.protos.non_obf.game.alliance_member_pb2 import (
     AllianceInvitationRequest,
@@ -78,6 +79,7 @@ from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
     FightInvisibilityState,
     FightRemovableEffect,
     FightStartingPositions,
+    FightTemporaryBoostEffect,
     InteractiveElement,
     MapCoordinates,
     MonsterInGroupInformation,
@@ -85,6 +87,7 @@ from DBDofusUnity.datas.protos.non_obf.game.common_pb2 import (
     ObjectItem,
     ObjectItemInventory,
     ObjectUidWithQuantity,
+    SocialEmblem,
     SpellModifier,
     StatedElement,
 )
@@ -102,6 +105,16 @@ from DBDofusUnity.datas.protos.non_obf.game.context_pb2 import (
     ContextRemoveElementEvent,
     ContextRemoveElementsEvent,
     EntitiesDispositionEvent,
+)
+from DBDofusUnity.datas.protos.non_obf.game.document_pb2 import DocumentReadingBeginEvent
+from DBDofusUnity.datas.protos.non_obf.game.emote_pb2 import (
+    EmoteAddedEvent,
+    EmoteMassivePlayEvent,
+    EmotePlayErrorEvent,
+    EmotePlayEvent,
+    EmotePlayRequest,
+    EmoteRemovedEvent,
+    EmotesEvent,
 )
 from DBDofusUnity.datas.protos.non_obf.game.exchange_pb2 import (
     BidItem,
@@ -180,7 +193,11 @@ from DBDofusUnity.datas.protos.non_obf.game.guild_rank_pb2 import (
     GuildRankRemoveRequest,
     GuildRightsUpdateRequest,
 )
-from DBDofusUnity.datas.protos.non_obf.game.haven_bag_pb2 import Element, HavenBagEnterRequest
+from DBDofusUnity.datas.protos.non_obf.game.haven_bag_pb2 import (
+    Element,
+    HavenBagEnterRequest,
+    HavenBagRoomUpdateEvent,
+)
 from DBDofusUnity.datas.protos.non_obf.game.interactive_element_pb2 import (
     InteractiveElementUpdatedEvent,
     InteractiveUsedEvent,
@@ -202,6 +219,7 @@ from DBDofusUnity.datas.protos.non_obf.game.inventory_pb2 import (
     ObjectsDeletedEvent,
     ObjectsQuantityEvent,
     ObjectUseRequest,
+    SetUpdateEvent,
     StorageInventoryContentEvent,
     StorageObjectRemovedEvent,
     StorageObjectsRemovedEvent,
@@ -209,7 +227,29 @@ from DBDofusUnity.datas.protos.non_obf.game.inventory_pb2 import (
     StorageObjectUpdateEvent,
     StorageTab,
 )
-from DBDofusUnity.datas.protos.non_obf.game.job_pb2 import JobExperience, JobExperiencesUpdateEvent
+from DBDofusUnity.datas.protos.non_obf.game.job_pb2 import (
+    JobDescription,
+    JobExperience,
+    JobExperiencesUpdateEvent,
+)
+from DBDofusUnity.datas.protos.non_obf.game.ladder_achievement_pb2 import (
+    AchievementLadderPageRequest,
+    AchievementLadderSelfRankRequest,
+)
+from DBDofusUnity.datas.protos.non_obf.game.ladder_arena_pb2 import (
+    ArenaLadderPageRequest,
+    ArenaLadderSelfRankRequest,
+)
+from DBDofusUnity.datas.protos.non_obf.game.ladder_breach_pb2 import (
+    BreachLadderEntry,
+    BreachLadderPageRequest,
+    BreachLadderSelfRankRequest,
+)
+from DBDofusUnity.datas.protos.non_obf.game.ladder_experience_pb2 import (
+    ExperienceLadderPageRequest,
+    ExperienceLadderSelfRankRequest,
+)
+from DBDofusUnity.datas.protos.non_obf.game.ladder_pb2 import LadderCharacter
 from DBDofusUnity.datas.protos.non_obf.game.npc_pb2 import (
     NpcDialogQuestionEvent,
     NpcDialogReplyRequest,
@@ -247,10 +287,16 @@ from DBDofusUnity.datas.protos.non_obf.game.roleplay_pb2 import (
     RemoveChallengeEvent,
     SpellAnimEvent,
 )
+from DBDofusUnity.datas.protos.non_obf.game.social_pb2 import (
+    AdditionalSmileyEvent,
+    SmileyEvent,
+    SmileyRequest,
+)
 from DBDofusUnity.datas.protos.non_obf.game.spell_pb2 import (
     SpellItem,
     SpellsEvent,
     SpellVariantActivationEvent,
+    SpellVariantActivationRequest,
 )
 from DBDofusUnity.datas.protos.non_obf.game.taxcollector_pb2 import (
     TaxCollectorAddedEvent,
@@ -262,10 +308,21 @@ from DBDofusUnity.datas.protos.non_obf.game.taxcollector_pb2 import (
     TaxCollectorOrderedSpellRemoveRequest,
 )
 from DBDofusUnity.datas.protos.non_obf.game.teleportation_pb2 import (
+    TeleportBuddiesEvent,
+    TeleportBuddiesRequestedEvent,
     TeleportDestination,
     TeleportDestinationsEvent,
     TeleportRequest,
+    TeleportToBuddyClosedEvent,
+    TeleportToBuddyOfferEvent,
     ZaapKnownListEvent,
+)
+from DBDofusUnity.datas.protos.non_obf.game.tinsel_pb2 import (
+    OrnamentGainedEvent,
+    OrnamentLostEvent,
+    TitleGainedEvent,
+    TitleLostEvent,
+    TitlesAndOrnamentsEvent,
 )
 from DBDofusUnity.dofus_unity_reader.data_center.data_reader import DataReader
 from DBDofusUnity.dofus_unity_reader.data_center.i18n import I18N
@@ -286,7 +343,9 @@ MAX_ITEM_MOVE_QUANTITY = 1_000_000
 MAX_POSITION_INVENTORY = 63
 MAX_TAB_NUMBER = 5
 MAX_COOLDOWN_SPELL = 12
-MAX_TYPE_ITEMS = 1_000
+_SALE_HOTEL_TYPES_MISSING_FROM_CATALOG = frozenset(
+    {86, 87, 158, 159, 160, 161, 162, 163, 178, 182, 223, 238, 261, 291, 293}
+)
 MIN_NICKNAME_LENGTH = 2
 TAX_PERCENTAGE = 2.0
 TAX_UPDATE_PERCENTAGE = 1.0
@@ -303,7 +362,6 @@ MAX_ROUND_NUMBER = 200
 MAX_WAVE_ID = 50
 MAX_TURN_TIME_MS = 60_000
 MAX_MOOD_SMILEY_ID = 50
-MAX_ACHIEVEMENT_ID = 100_000
 
 
 from pydantic import validate_call
@@ -497,7 +555,7 @@ def is_valid_total_move_quantity(value: int) -> bool:
 
 @strict_validate_call
 def is_valid_type_item(value: int) -> bool:
-    return value > 0 and value < MAX_TYPE_ITEMS
+    return value in _SALE_HOTEL_TYPES_MISSING_FROM_CATALOG or value in DataReader().item_type_by_id
 
 
 @strict_validate_call
@@ -720,7 +778,7 @@ def is_valid_mood_smiley_id(value: int) -> bool:
 
 @strict_validate_call
 def is_valid_achievement_id(value: int) -> bool:
-    return -1 <= value <= MAX_ACHIEVEMENT_ID
+    return value in DataReader().achievement_ids
 
 
 @strict_validate_call
@@ -746,6 +804,111 @@ def is_valid_invisibility_state(value: int) -> bool:
 @strict_validate_call
 def is_valid_dissipation_state(value: int) -> bool:
     return value in FightRemovableEffect.EffectDissipationState.values()
+
+
+@strict_validate_call
+def is_valid_achievement_objective_id(value: int) -> bool:
+    return value in DataReader().achievement_objective_ids
+
+
+@strict_validate_call
+def is_valid_achievement_category_id(value: int) -> bool:
+    return value in DataReader().achievement_category_ids
+
+
+@strict_validate_call
+def is_valid_challenge_id(value: int) -> bool:
+    return value in DataReader().challenge_ids
+
+
+@strict_validate_call
+def is_valid_emote_id(value: int) -> bool:
+    return value in DataReader().emote_ids
+
+
+@strict_validate_call
+def is_valid_title_id(value: int) -> bool:
+    return value in DataReader().title_ids
+
+
+@strict_validate_call
+def is_valid_ornament_id(value: int) -> bool:
+    return value in DataReader().ornament_ids
+
+
+@strict_validate_call
+def is_valid_quest_step_id(value: int) -> bool:
+    return value in DataReader().quest_step_by_id
+
+
+@strict_validate_call
+def is_valid_item_set_id(value: int) -> bool:
+    return value in DataReader().item_set_ids
+
+
+@strict_validate_call
+def is_valid_npc_question_id(value: int) -> bool:
+    return value in DataReader().npc_question_ids
+
+
+@strict_validate_call
+def is_valid_breed_id(value: int) -> bool:
+    return value in DataReader().breed_by_id
+
+
+@strict_validate_call
+def is_valid_server_id(value: int) -> bool:
+    return value in DataReader().server_by_id
+
+
+@strict_validate_call
+def is_valid_interactive_type_id(value: int) -> bool:
+    return value == -1 or value in DataReader().interactive_type_ids
+
+
+@strict_validate_call
+def is_valid_spell_state_id(value: int) -> bool:
+    return value in DataReader().spell_state_ids
+
+
+@strict_validate_call
+def is_valid_haven_bag_theme_id(value: int) -> bool:
+    return value in DataReader().haven_bag_theme_ids
+
+
+@strict_validate_call
+def is_valid_variant_spell_id(value: int) -> bool:
+    return value in DataReader().variant_spell_ids
+
+
+@strict_validate_call
+def is_valid_npc_reply_id(value: int) -> bool:
+    return value in DataReader().npc_reply_i18n_by_reply_id
+
+
+@strict_validate_call
+def is_valid_dungeon_id(value: int) -> bool:
+    return value in DataReader().dungeon_by_id
+
+
+@strict_validate_call
+def is_valid_emblem_symbol_id(value: int) -> bool:
+    return value in DataReader().emblem_symbol_ids
+
+
+@strict_validate_call
+def is_valid_document_id(value: int) -> bool:
+    return value in DataReader().document_ids
+
+
+@strict_validate_call
+def is_valid_smiley_id(value: int) -> bool:
+    return value in DataReader().smiley_ids
+
+
+@strict_validate_call
+def is_valid_smiley_pack_id(value: int) -> bool:
+    return value in DataReader().smiley_pack_ids
 
 
 def is_list_of[T](validator: ValidatorFn[T]) -> Callable[[list[T]], bool]:
@@ -800,11 +963,16 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
     AccountInformationUpdateEvent: {"subscription_end_date": is_valid_timestamp},
     AccountCapabilitiesEvent: {"account_id": is_valid_account_id},
     # achievement_pb2
+    AchievementsDetailedRequest: {"category_id": is_valid_achievement_category_id},
+    TitlesAndOrnamentsEvent: {
+        "titles": is_list_of(is_valid_title_id),
+        "ornaments": is_list_of(is_valid_ornament_id),
+    },
     AchievementDetailsRequest: {"achievement_id": is_valid_achievement_id},
     AchievementRewardRequest: {"achievement_id": is_valid_achievement_id},
     AchievementRewardResultEvent: {"achievement_id": is_valid_achievement_id},
     Achievement: {"achievement_id": is_valid_achievement_id},
-    _AchievementObjective: {"objective_id": is_valid_strict_positive},
+    _AchievementObjective: {"objective_id": is_valid_achievement_objective_id},
     AchievedAchievement: {
         "achievement_id": is_valid_achievement_id,
         "achieved_by": is_valid_player_id,
@@ -873,10 +1041,10 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
     CharacterCharacteristicsEvent: {"stats": is_non_empty_dict},
     CharacterLevelUpEvent: {"new_level": is_valid_level},
     # challenge_pb2
-    ChallengeTargetsRequest: {"challenge_id": is_valid_strict_positive},
-    ChallengeSelectionRequest: {"challenge_id": is_valid_strict_positive},
-    ChallengeValidateRequest: {"challenge_id": is_valid_strict_positive},
-    ChallengeResultEvent: {"challenge_id": is_valid_strict_positive},
+    ChallengeTargetsRequest: {"challenge_id": is_valid_challenge_id},
+    ChallengeSelectionRequest: {"challenge_id": is_valid_challenge_id},
+    ChallengeValidateRequest: {"challenge_id": is_valid_challenge_id},
+    ChallengeResultEvent: {"challenge_id": is_valid_challenge_id},
     ChallengeNumberEvent: {"challenge_number": is_valid_strict_positive},
     ChallengeProposalEvent: {"timer": is_valid_positive},
     # character_management_pb2
@@ -900,6 +1068,7 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
         "kamas": is_valid_amount_of_kamas,
     },
     SpellModifier: {"spell_id": is_valid_spell_id},
+    SocialEmblem: {"symbol_shape_id": is_valid_emblem_symbol_id},
     FightRemovableEffect: {
         "uid": is_valid_strict_positive,
         "spell_id": is_valid_spell_id,
@@ -948,6 +1117,8 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
         "creature_grade": is_valid_grade,
     },
     # common_pb2
+    InteractiveElement: {"element_type_id": is_valid_interactive_type_id},
+    FightTemporaryBoostEffect: {"state_id": is_valid_spell_state_id},
     _InteractiveElementSkill: {
         "skill_id": is_valid_skill_id,
         "skill_instance_uid": is_valid_strict_positive,
@@ -1151,6 +1322,7 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
     },
     GuildRightsUpdateRequest: {"rank_id": is_valid_strict_positive},
     # haven_bag_pb2
+    HavenBagRoomUpdateEvent.HavenBagRoomPreview: {"theme_id": is_valid_haven_bag_theme_id},
     HavenBagEnterRequest: {"owner": is_valid_strict_positive},
     Element: {"cell_id": is_valid_cell_id, "orientation": is_valid_direction},
     # interactive_element_pb2
@@ -1164,6 +1336,7 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
     },
     StatedElementUpdatedEvent: {"stated_element": is_non_empty_dict},
     # inventory_pb2
+    SetUpdateEvent: {"set_id": is_valid_item_set_id},
     ObjectDeletedEvent: {"object_uid": is_valid_strict_positive},
     ObjectsDeletedEvent: {"objects_uid": is_list_of(is_valid_strict_positive)},
     StorageTab: {"tab_number": is_valid_tab_number},
@@ -1189,6 +1362,7 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
         "position": is_valid_position,
     },
     # job_pb2
+    JobDescription: {"job_id": is_valid_job_id},
     JobExperience: {
         "job_id": is_valid_job_id,
         "job_level": is_valid_level,
@@ -1197,6 +1371,21 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
         "job_xp_next_level_floor": is_valid_strict_positive,
     },
     JobExperiencesUpdateEvent: {"experiences": is_not_empty_list},
+    # ladder_pb2
+    LadderCharacter: {"breed_id": is_valid_breed_id, "server_id": is_valid_server_id},
+    # ladder_achievement_pb2
+    AchievementLadderPageRequest: {"server_id": is_valid_server_id},
+    AchievementLadderSelfRankRequest: {"server_id": is_valid_server_id},
+    # ladder_arena_pb2
+    ArenaLadderPageRequest: {"breed_id": is_valid_breed_id},
+    ArenaLadderSelfRankRequest: {"breed_id": is_valid_breed_id},
+    # ladder_breach_pb2
+    BreachLadderEntry: {"breed_id": is_valid_breed_id},
+    BreachLadderPageRequest: {"server_id": is_valid_server_id},
+    BreachLadderSelfRankRequest: {"server_id": is_valid_server_id},
+    # ladder_experience_pb2
+    ExperienceLadderPageRequest: {"server_id": is_valid_server_id},
+    ExperienceLadderSelfRankRequest: {"server_id": is_valid_server_id},
     # npc_pb2
     NpcGenericActionRequest: {
         "npc_map_id": is_valid_map_id,
@@ -1204,8 +1393,22 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
         "npc_action_id": is_valid_npc_action_id,
     },
     _NpcWithQuest: {"npc_id": is_valid_npc_id},
-    NpcDialogReplyRequest: {"reply_id": is_valid_strict_positive},
-    NpcDialogQuestionEvent: {"message_id": is_valid_strict_positive},
+    NpcDialogReplyRequest: {"reply_id": is_valid_npc_reply_id},
+    NpcDialogQuestionEvent.VisibleReply: {"reply_id": is_valid_npc_reply_id},
+    NpcDialogQuestionEvent: {"message_id": is_valid_npc_question_id},
+    # emote_pb2
+    EmotePlayRequest: {"emote_id": is_valid_emote_id},
+    EmoteAddedEvent: {"emote_id": is_valid_emote_id},
+    EmoteRemovedEvent: {"emote_id": is_valid_emote_id},
+    EmotePlayEvent: {"emote_id": is_valid_emote_id},
+    EmoteMassivePlayEvent: {"emote_id": is_valid_emote_id},
+    EmotePlayErrorEvent: {"emote_id": is_valid_emote_id},
+    EmotesEvent: {"emotes_id": is_list_of(is_valid_emote_id)},
+    # tinsel_pb2
+    OrnamentGainedEvent: {"ornament_id": is_valid_ornament_id},
+    OrnamentLostEvent: {"ornament_id": is_valid_ornament_id},
+    TitleGainedEvent: {"title_id": is_valid_title_id},
+    TitleLostEvent: {"title_id": is_valid_title_id},
     # quest_pb2
     QuestStartRequest: {"quest_id": is_valid_quest_id},
     QuestStepInformationRequest: {"quest_id": is_valid_quest_id},
@@ -1235,14 +1438,14 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
     },
     QuestStepValidatedEvent: {
         "quest_id": is_valid_quest_id,
-        "step_id": is_valid_strict_positive,
+        "step_id": is_valid_quest_step_id,
     },
     QuestStepStartedEvent: {
         "quest_id": is_valid_quest_id,
-        "step_id": is_valid_strict_positive,
+        "step_id": is_valid_quest_step_id,
     },
     QuestActive: {"quest_id": is_valid_quest_id},
-    _QuestActiveDetails: {"step_id": is_valid_strict_positive},
+    _QuestActiveDetails: {"step_id": is_valid_quest_step_id},
     QuestObjective: {"objective_id": is_valid_quest_objective_id},
     # roleplay_pb2
     PlayerFightRequest: {
@@ -1292,10 +1495,17 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
         "delayed_end_time": is_valid_timestamp,
     },
     DelayedActionFinishedEvent: {"character_id": is_valid_player_id},
+    # document_pb2
+    DocumentReadingBeginEvent: {"document_id": is_valid_document_id},
+    # social_pb2
+    SmileyRequest: {"smiley_id": is_valid_smiley_id},
+    SmileyEvent: {"smiley_id": is_valid_smiley_id},
+    AdditionalSmileyEvent: {"pack_id": is_list_of(is_valid_smiley_pack_id)},
     # spell_pb2
     SpellItem: {"spell_id": is_valid_spell_id, "spell_level": is_valid_spell_numero},
     SpellsEvent: {"human_spells": is_not_empty_list, "mutant_spells": is_empty_list},
-    SpellVariantActivationEvent: {"spell_id": is_valid_spell_id},
+    SpellVariantActivationEvent: {"spell_id": is_valid_variant_spell_id},
+    SpellVariantActivationRequest: {"spell_id": is_valid_variant_spell_id},
     # taxcollector_pb2
     TaxCollectorOrderedSpellRemoveRequest: {"slot_id": is_valid_positive},
     TaxCollectorOrderedSpellMoveRequest: {
@@ -1320,6 +1530,10 @@ VALIDATORS_ON_FIELD: dict[type[Message], dict[str, ValidatorFn[Any]]] = {
     # teleportation_pb2
     TeleportRequest: {"map_id": is_valid_map_id},
     ZaapKnownListEvent: {"destinations": is_list_of(is_valid_map_id)},
+    TeleportBuddiesEvent: {"dungeon_id": is_valid_dungeon_id},
+    TeleportBuddiesRequestedEvent: {"dungeon_id": is_valid_dungeon_id},
+    TeleportToBuddyOfferEvent: {"dungeon_id": is_valid_dungeon_id},
+    TeleportToBuddyClosedEvent: {"dungeon_id": is_valid_dungeon_id},
     TeleportDestinationsEvent: {"spawn_map_id": is_valid_map_id},
     TeleportDestination: {
         "map_id": is_valid_map_id,

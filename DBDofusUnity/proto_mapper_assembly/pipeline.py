@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from DBDofusUnity.dofus_unity_reader.data_center.data_reader import require_data_catalogs
 from DBDofusUnity.consts import (
     CAPTURE_SEQUENCE_HINTS_FILE,
     GAME_MAPPINGS_DETAILED_JSON_FILE,
@@ -84,6 +85,7 @@ def build_pipeline_paths(*, obf_dir: Path | None = None) -> PipelinePaths:
 
 
 def run_pipeline(*, do_load_pinned_pair: bool, obf_dir: Path | None = None) -> None:
+    require_data_catalogs()
     contract = generate_auto_mode_mapping_contract()
     pipeline_paths = build_pipeline_paths(obf_dir=obf_dir)
     runtime_data_store = RuntimeDataStore()

@@ -296,3 +296,66 @@ def validator_character_characteristic_upgrade_request(values: dict[str, object]
         _get_next_characteristic_point_cost(field_name, upgrade) for field_name, upgrade in positive_upgrades
     )
     return remaining_points < next_point_cost
+
+
+def validator_quest_step(values: dict[str, object]) -> bool:
+    quest_id = values["quest_id"]
+    step_id = values["step_id"]
+    if type(quest_id) is not int or type(step_id) is not int:
+        return False
+    quest = DataReader().quest_by_id.get(quest_id)
+    return quest is not None and step_id in quest.stepIds
+
+
+def validator_quest_objective(values: dict[str, object]) -> bool:
+    quest_id = values["quest_id"]
+    objective_id = values["objective_id"]
+    if type(quest_id) is not int or type(objective_id) is not int:
+        return False
+    return (quest_id, objective_id) in DataReader().quest_objective_pairs
+
+
+def validator_spell_grade(values: dict[str, object]) -> bool:
+    spell_id = values["spell_id"]
+    grade = values["spell_level"]
+    if type(spell_id) is not int or type(grade) is not int:
+        return False
+    return any(level.grade == grade for level in DataReader().spell_lvl_by_spell_id.get(spell_id, []))
+
+
+def validator_job_skills(values: dict[str, object]) -> bool:
+    job_id = values["job_id"]
+    skills = values["skills"]
+    if type(job_id) is not int or not isinstance(skills, list):
+        return False
+    if job_id not in DataReader().job_by_id:
+        return False
+    known_skills = DataReader().skill_by_id
+    candidate_fields: set[str] | None = None
+    for row in skills:
+        if not isinstance(row, dict):
+            return False
+        matching_fields = {
+            key
+            for key, value in cast(dict[str, object], row).items()
+            if key != "capture_sequence"
+            and type(value) is int
+            and (skill := known_skills.get(value)) is not None
+            and skill.parentJobId == job_id
+        }
+        candidate_fields = matching_fields if candidate_fields is None else candidate_fields & matching_fields
+        if not candidate_fields:
+            return False
+    return True
+
+
+def validator_fight_spell_effect(values: dict[str, object]) -> bool:
+    spell_id = values["spell_id"]
+    effect_id = values["effect_id"]
+    if type(spell_id) is not int or type(effect_id) is not int:
+        return False
+    return any(
+        effect.effectUid == effect_id
+        for level in DataReader().spell_lvl_by_spell_id.get(spell_id, [])
+        for effect in (*level.effects, *level.criticalEffect)
+    )

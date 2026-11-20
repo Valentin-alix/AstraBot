@@ -24,9 +24,11 @@ from DBDofusUnity.proto_mapper_assembly.validators.set_validators import (
     validator_exchange_second_character_pods,
     validator_fight_request_canceled_event,
     validator_fight_slave_switch_context_event,
+    validator_fight_spell_effect,
     validator_fight_starting_positions,
     validator_fight_turn_event,
     validator_job_experience,
+    validator_job_skills,
     validator_map_coordinates,
     validator_monster_angry_at_player_event,
     validator_paddock_buy_result_event,
@@ -34,7 +36,10 @@ from DBDofusUnity.proto_mapper_assembly.validators.set_validators import (
     validator_paddocks_to_sell_event,
     validator_player_fight_friendly_answered_event,
     validator_player_fight_friendly_requested_event,
+    validator_quest_objective,
+    validator_quest_step,
     validator_slide,
+    validator_spell_grade,
     validator_subscribe_multiple_channel_request,
     validator_update_life_points_event,
 )
@@ -61,6 +66,51 @@ class GlobalValidatorFieldGroup:
 
 
 SET_VALIDATOR_FIELD_GROUPS: tuple[SetValidatorFieldGroup, ...] = (
+    SetValidatorFieldGroup(
+        message_short_name="FightRemovableEffect",
+        field_names=("spell_id", "effect_id"),
+        validator_fn=validator_fight_spell_effect,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="SpellItem",
+        field_names=("spell_id", "spell_level"),
+        validator_fn=validator_spell_grade,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="JobDescription",
+        field_names=("job_id", "skills"),
+        validator_fn=validator_job_skills,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="QuestStepStartedEvent",
+        field_names=("quest_id", "step_id"),
+        validator_fn=validator_quest_step,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="QuestStepValidatedEvent",
+        field_names=("quest_id", "step_id"),
+        validator_fn=validator_quest_step,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="QuestObjectiveValidationRequest",
+        field_names=("quest_id", "objective_id"),
+        validator_fn=validator_quest_objective,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="QuestObjectiveFollowRequest",
+        field_names=("quest_id", "objective_id"),
+        validator_fn=validator_quest_objective,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="QuestObjectiveUnfollowRequest",
+        field_names=("quest_id", "objective_id"),
+        validator_fn=validator_quest_objective,
+    ),
+    SetValidatorFieldGroup(
+        message_short_name="QuestObjectiveValidatedEvent",
+        field_names=("quest_id", "objective_id"),
+        validator_fn=validator_quest_objective,
+    ),
     SetValidatorFieldGroup(
         message_short_name="BakActionRequest",
         field_names=("kamas", "ogrines", "rate", "bid_action"),
@@ -251,7 +301,7 @@ def build_ilp_validator_constraints(
                 validator_passes = all(group.validator_fn(trial) for trial in trial_instances)
             else:
                 validator_passes = group.validator_fn(trial_instances)
-        except (ValueError, KeyError, AssertionError):
+        except ValueError, KeyError, AssertionError:
             validator_passes = False
 
         if not validator_passes:
