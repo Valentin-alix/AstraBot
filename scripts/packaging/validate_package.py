@@ -106,10 +106,12 @@ def validate_package(folder: Path) -> None:
             log = ""
             while time.monotonic() < deadline:
                 log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+                if "Application ready." in log:
+                    raise RuntimeError("Packaged startup accepted an installation without Dofus")
+                if "Startup task failed: The installed Dofus version is missing or unreadable." in log:
+                    break
                 if process.poll() is not None or "ERROR" in log:
                     raise RuntimeError(f"Packaged startup failed:\n{log}")
-                if "Application ready." in log:
-                    break
                 time.sleep(0.2)
             else:
                 raise TimeoutError(f"Packaged startup did not finish:\n{log}")
@@ -121,9 +123,9 @@ def validate_package(folder: Path) -> None:
                 except subprocess.TimeoutExpired:
                     if time.monotonic() >= deadline:
                         raise TimeoutError(f"Packaged application did not close:\n{log}") from None
-            if process.returncode != 0:
-                raise RuntimeError(f"Packaged application exited with code {process.returncode}")
-            print("PASS: bundled Chromium, VERSION file, startup without GitHub sign-in and clean shutdown")
+            if process.returncode != 1:
+                raise RuntimeError(f"Missing Dofus must produce exit code 1, got {process.returncode}")
+            print("PASS: bundled Chromium, VERSION file, missing Dofus detected and exit code 1")
         finally:
             if process.poll() is None:
                 try:
