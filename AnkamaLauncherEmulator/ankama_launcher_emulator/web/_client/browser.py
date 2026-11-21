@@ -62,6 +62,7 @@ def _prune_expired_trace_directories(active_trace_directory: Path) -> None:
 async def launch_browser_context(
     *,
     proxy_url: str | None,
+    headless: bool = True,
 ) -> AsyncGenerator[BrowserContext, None]:
     configure_browser_path()
     trace_directory = None if IS_PACKAGED else _trace_directory()
@@ -71,6 +72,7 @@ async def launch_browser_context(
             browser = await playwright.chromium.launch(
                 traces_dir=trace_directory,
                 channel="chromium",
+                headless=headless,
                 args=BROWSER_ARGS,
                 proxy=proxy_settings,
             )

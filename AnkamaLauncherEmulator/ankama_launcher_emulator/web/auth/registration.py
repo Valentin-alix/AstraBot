@@ -108,7 +108,7 @@ async def register_account(
     current_options = options
     rejected_mailbox_count = 0
 
-    async with launch_browser_context(proxy_url=options.proxy_url) as context:
+    async with launch_browser_context(proxy_url=options.proxy_url, headless=False) as context:
         page = await context.new_page()
         try:
             state = await get_registration_state(page)
@@ -191,11 +191,11 @@ async def register_account(
             )
         except Exception as exc:
             if is_waf_or_cloudfront_block(status_code=None, content=str(exc)):
-                MailAccountController().quarantine(current_options.email, "Confirmed WAF/CloudFront block")
                 logger.error(
-                    "[Register] WAF/CloudFront blocked %s after %d rejected mailbox(es); mailbox discarded.",
+                    "[Register] WAF/CloudFront blocked registration for %s after %d rejected mailbox(es): %s",
                     current_options.email,
                     rejected_mailbox_count,
+                    exc,
                 )
                 return RegistrationResult(
                     False,
@@ -558,7 +558,6 @@ _DISCARDABLE_EMAIL_ERROR_MARKERS = (
     "n'est pas valide",
     "compte existant",
     "ankama rejected confirmation code",
-    "waf/cloudfront blocked",
 )
 
 

@@ -7,12 +7,10 @@ from typing import Literal
 
 from PyQt6.QtCore import QTimer, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QCloseEvent, QColor, QIcon, QImage, QPixmap
-from PyQt6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 from qfluentwidgets import (
-    BodyLabel,
     FluentIcon,
     NavigationItemPosition,
-    PushButton,
 )
 lazy from ankama_launcher_emulator.controller.bot_storage import BotStorageController
 
@@ -28,6 +26,7 @@ from src.gui.fragments.sidebar_item import SidebarItem
 from src.gui.services.item_icons import class_icon_cache
 from src.gui.pages.activity_page import ActivityPage
 from src.gui.pages.settings.settings_page import SettingsPage
+from src.gui.pages.startup_page import StartupPage
 from src.services.background import run_in_background
 from src.services.logging_utils.loggers import init_root_gui_logging
 lazy from src.core.bot.bot import Bot
@@ -52,15 +51,9 @@ class MainWindow(AppFluentWindow):
         self.setWindowTitle(self.title)
         self.resize(BASE_WIDTH, BASE_HEIGHT)
         self.setWindowIcon(QIcon(LOGO_FILE))
-        self.startup_status = QWidget(self)
-        status_layout = QHBoxLayout(self.startup_status)
-        self.status_label = BodyLabel("Starting?", self.startup_status)
-        self.retry_button = PushButton("Retry", self.startup_status)
-        self.retry_button.clicked.connect(self.retry_requested.emit)
-        self.retry_button.hide()
-        status_layout.addWidget(self.status_label, 1)
-        status_layout.addWidget(self.retry_button)
-        self.widgetLayout.insertWidget(0, self.startup_status)
+        self.startup_page = StartupPage(self)
+        self.startup_page.retry_requested.connect(self.retry_requested.emit)
+        self.stackedWidget.addWidget(self.startup_page)
 
         self.disconnected_icon = FluentIcon.PEOPLE.icon(color=QColor(255, 0, 0))
         self.connected_icon = FluentIcon.PEOPLE.icon(color=QColor(0, 255, 0))
@@ -105,6 +98,9 @@ class MainWindow(AppFluentWindow):
         self.settings_page.schedules_changed.connect(self._refresh_schedules)
         self.settings_page.behaviors_changed.connect(self._refresh_launch_summaries)
         self.confirmation_dialogs = ManualConfirmationDialogs(self)
+        self.navigationInterface.hide()
+        self.update_title_bar_geometry()
+        self.stackedWidget.setCurrentWidget(self.startup_page)
 
     def _refresh_launch_summaries(self) -> None:
         for page in self.account_widgets:
@@ -122,20 +118,19 @@ class MainWindow(AppFluentWindow):
         run_in_background(refresh)
 
     def set_startup_status(self, status: str) -> None:
-        self.status_label.setText(status)
-        self.startup_status.show()
-        self.retry_button.hide()
+        self.startup_page.show_status(status)
 
     def show_startup_error(self, message: str) -> None:
-        self.status_label.setText(message)
-        self.retry_button.show()
-        self.startup_status.show()
+        self.startup_page.show_status(message, error=True)
 
     def set_runtime_ready(self) -> None:
-        self.startup_status.hide()
         if self._runtime_ready:
             return
         self._runtime_ready = True
+        self.navigationInterface.show()
+        self.update_title_bar_geometry()
+        self.switchTo(self.activity_page)
+        self.navigationInterface.setCurrentItem(self.activity_page.objectName())
         self.settings_page.enable_editing()
         self.activity_page.set_actions_enabled(True)
         for sidebar in self.sidebar_items_by_login.values():
@@ -169,6 +164,8 @@ class MainWindow(AppFluentWindow):
         self._subscription_refresh_timer.stop()
 
     def switchTo(self, widget: QWidget) -> None:
+        if not self._runtime_ready:
+            return
         login = widget.objectName()
         if login in self.bots_by_login and widget.layout() is None:
             snapshot, reason, subscription_end = self._account_details[login]

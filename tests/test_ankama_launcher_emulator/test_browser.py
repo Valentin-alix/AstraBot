@@ -50,6 +50,7 @@ class TestLaunchBrowserContext(IsolatedAsyncioTestCase):
         playwright.chromium.launch.assert_awaited_once_with(
             traces_dir=trace_directory,
             channel="chromium",
+            headless=True,
             args=browser_module.BROWSER_ARGS,
             proxy=None,
         )
@@ -84,6 +85,7 @@ class TestLaunchBrowserContext(IsolatedAsyncioTestCase):
         playwright.chromium.launch.assert_awaited_once_with(
             traces_dir=None,
             channel="chromium",
+            headless=True,
             args=browser_module.BROWSER_ARGS,
             proxy=None,
         )

@@ -24,7 +24,13 @@ class AppFluentWindow(FluentWindowBase):
         self.stackedWidget = NoAnimatedStackedWidget()
         FluentStyleSheet.FLUENT_WINDOW.apply(self.stackedWidget)
 
-        self.setTitleBar(FluentTitleBar(self))
+        title_bar = FluentTitleBar(self)
+        title_layout = title_bar.layout()
+        assert title_layout is not None
+        margins = title_layout.contentsMargins()
+        margins.setLeft(12)
+        title_layout.setContentsMargins(margins)
+        self.setTitleBar(title_bar)
         self.titleBar.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
         self._set_dark_background(self.titleBar)
         setCustomStyleSheet(
@@ -102,5 +108,10 @@ class AppFluentWindow(FluentWindowBase):
         self._updateStackedBackground()
 
     def resizeEvent(self, a0: QResizeEvent | None) -> None:
-        self.titleBar.move(46, 0)
-        self.titleBar.resize(self.width() - 46, self.titleBar.height())
+        self.update_title_bar_geometry()
+
+    def update_title_bar_geometry(self) -> None:
+        navigation = getattr(self, "navigationInterface", None)
+        left = 46 if navigation is not None and not navigation.isHidden() else 0
+        self.titleBar.move(left, 0)
+        self.titleBar.resize(self.width() - left, self.titleBar.height())

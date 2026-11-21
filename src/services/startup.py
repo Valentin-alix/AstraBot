@@ -15,6 +15,7 @@ lazy from ankama_launcher_emulator.interfaces.credentials import StoredApiKey
 lazy from ankama_launcher_emulator.interfaces.local_storage import BotRecord
 
 from src.services.display_catalog import load_display_catalog
+from src.services.github_auth import require_github_sign_in
 from src.utils.project_paths import IS_PACKAGED
 from src.utils.runtime_support import RuntimeSetupError
 lazy from src.controller.bot_config import BotConfig, BotConfigService
@@ -51,7 +52,14 @@ def prepare_startup(
     validate: Callable[[Callable[[str], None]], None],
     progress: Callable[[str], None],
     cancelled: Event,
+    show_github_code: Callable[[str], None],
 ) -> PreparedAccounts | None:
+    if cancelled.is_set():
+        return None
+    require_github_sign_in(progress, show_github_code, cancelled)
+    if cancelled.is_set():
+        return None
+    progress("Checking installation…")
     if IS_PACKAGED:
         clean_update_staging()
         previous_error = consume_update_status()

@@ -37,6 +37,11 @@ def validate_package(folder: Path) -> None:
     version = folder / "_internal/VERSION"
     if not version.is_file():
         raise RuntimeError("Packaged VERSION file is missing")
+    expected_client_id = os.environ.get("ASTRABOT_GITHUB_CLIENT_ID", "").strip()
+    if expected_client_id:
+        client_id = folder / "_internal/github-client-id.txt"
+        if not client_id.is_file() or client_id.read_text(encoding="utf-8").strip() != expected_client_id:
+            raise RuntimeError("Packaged GitHub client ID does not match ASTRABOT_GITHUB_CLIENT_ID")
     if not (folder / "_internal/UnityPy/resources/lzma.tpk").is_file():
         raise RuntimeError("Packaged UnityPy image decoder resources are missing")
     if not (folder / "_internal/fmod_toolkit/libfmod/Windows/x64/fmod.dll").is_file():
@@ -50,6 +55,7 @@ def validate_package(folder: Path) -> None:
         root = Path(temporary)
         package = root / "release"
         shutil.copytree(folder, package)
+        (package / "_internal/github-client-id.txt").unlink(missing_ok=True)
         profile = root / "profile"
         environment = dict(os.environ)
         environment.update(
@@ -67,6 +73,7 @@ def validate_package(folder: Path) -> None:
             "IDA_EXE",
             "OPENAI_API_KEY",
             "SONJI_API_KEY",
+            "ASTRABOT_GITHUB_CLIENT_ID",
         ):
             environment.pop(name, None)
         driver = package / "_internal/playwright/driver"
@@ -99,10 +106,10 @@ def validate_package(folder: Path) -> None:
             log = ""
             while time.monotonic() < deadline:
                 log = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
-                if "The installed Dofus version is missing or unreadable." in log:
-                    break
                 if process.poll() is not None or "ERROR" in log:
                     raise RuntimeError(f"Packaged startup failed:\n{log}")
+                if "Application ready." in log:
+                    break
                 time.sleep(0.2)
             else:
                 raise TimeoutError(f"Packaged startup did not finish:\n{log}")
@@ -113,12 +120,10 @@ def validate_package(folder: Path) -> None:
                     process.wait(timeout=0.2)
                 except subprocess.TimeoutExpired:
                     if time.monotonic() >= deadline:
-                        raise TimeoutError(f"Packaged error dialog did not close:\n{log}") from None
-            if process.returncode != 1:
-                raise RuntimeError("Packaged startup must refuse an installation without Dofus")
-            if "Application ready." in log:
-                raise RuntimeError("GUI started despite missing Dofus")
-            print("PASS: bundled Chromium, VERSION file, missing-game startup refusal and exit code 1")
+                        raise TimeoutError(f"Packaged application did not close:\n{log}") from None
+            if process.returncode != 0:
+                raise RuntimeError(f"Packaged application exited with code {process.returncode}")
+            print("PASS: bundled Chromium, VERSION file, startup without GitHub sign-in and clean shutdown")
         finally:
             if process.poll() is None:
                 try:

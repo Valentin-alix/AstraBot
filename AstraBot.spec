@@ -1,8 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 from pathlib import Path
 
 import msgspec
+from dotenv import dotenv_values
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, copy_metadata
 
 a = Analysis(
@@ -51,6 +53,15 @@ a.datas = [
 
 # Preserve source JSON files and runtime paths; only compact the packaged copies.
 compact_root = Path(SPECPATH) / 'build' / 'package-data'
+client_id = os.environ.get('ASTRABOT_GITHUB_CLIENT_ID')
+if client_id is None:
+    client_id = dotenv_values(Path(SPECPATH) / '.env').get('ASTRABOT_GITHUB_CLIENT_ID')
+if client_id and client_id.strip():
+    client_id_file = compact_root / 'github-client-id.txt'
+    client_id_file.parent.mkdir(parents=True, exist_ok=True)
+    client_id_file.write_text(client_id.strip(), encoding='utf-8')
+    a.datas.append(('github-client-id.txt', str(client_id_file), 'DATA'))
+
 saved_bytes = 0
 for index, (destination, source, kind) in enumerate(a.datas):
     relative = Path(destination)

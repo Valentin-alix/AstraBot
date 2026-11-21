@@ -34,8 +34,12 @@ jobs:
           }
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Build Windows package
+        env:
+          ASTRABOT_GITHUB_CLIENT_ID: ${{ vars.ASTRABOT_GITHUB_CLIENT_ID }}
         run: uv run poe package
       - name: Validate packaged startup and shutdown
+        env:
+          ASTRABOT_GITHUB_CLIENT_ID: ${{ vars.ASTRABOT_GITHUB_CLIENT_ID }}
         run: uv run python -m scripts.packaging.validate_package dist/AstraBot
       - name: Create release archive
         shell: pwsh

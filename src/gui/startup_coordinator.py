@@ -48,6 +48,7 @@ class StartupTask[ResultT](QThread):
 class StartupCoordinator(QObject):
     closed = pyqtSignal()
     update_started = pyqtSignal()
+    github_code = pyqtSignal(str)
 
     def __init__(
         self,
@@ -72,14 +73,15 @@ class StartupCoordinator(QObject):
         self._accounts_timer.setSingleShot(True)
         self._accounts_timer.timeout.connect(self._add_accounts)
         window.retry_requested.connect(self.retry)
+        self.github_code.connect(self._show_github_code)
 
     def start(self) -> None:
         if self._closing:
             return
         self.failed = False
-        self.window.set_startup_status("Checking installation…")
+        self.window.set_startup_status("Preparing startup…")
         self._work(
-            lambda progress: prepare_startup(self.validate, progress, self._cancelled),
+            lambda progress: prepare_startup(self.validate, progress, self._cancelled, self.github_code.emit),
             self._accounts_prepared,
         )
 
@@ -108,6 +110,11 @@ class StartupCoordinator(QObject):
             self._fail(task.error)
             return
         task.done(task.result)
+
+    @pyqtSlot(str)
+    def _show_github_code(self, code: str) -> None:
+        if not self._closing:
+            self.window.startup_page.show_device_code(code)
 
     def _accounts_prepared(self, result: PreparedAccounts | None) -> None:
         result = cast(PreparedAccounts, result)
