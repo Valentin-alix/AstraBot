@@ -12,16 +12,17 @@ from ankama_launcher_emulator.web._client.mail_providers.imap import (
     ImapMailProvider,
     MailboxSettings,
 )
+from ankama_launcher_emulator.web._client.mail_providers.manual import ManualMailCodeProvider
 from ankama_launcher_emulator.web._client.mail_providers.smailpro import (
     SmailProMailProvider,
     SmailProSettings,
 )
 
 
-def resolve_mail_provider(account_email: str) -> MailCodeProvider | None:
+def resolve_mail_provider(account_email: str) -> MailCodeProvider:
     config = MailAccountController().get_config(account_email)
     if config is None or isinstance(config, ManualAccountConfig):
-        return None
+        return ManualMailCodeProvider(account_email)
     if isinstance(config, ImapAccountConfig):
         return ImapMailProvider(
             MailboxSettings(
@@ -40,3 +41,7 @@ def resolve_mail_provider(account_email: str) -> MailCodeProvider | None:
             ),
         )
     )
+
+async def snapshot_confirmation_inbox(provider: MailCodeProvider) -> None:
+    if isinstance(provider, SmailProMailProvider):
+        await provider.snapshot_inbox()

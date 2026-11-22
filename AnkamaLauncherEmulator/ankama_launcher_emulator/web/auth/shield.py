@@ -14,9 +14,8 @@ from ankama_launcher_emulator.web._client.mail_providers.base import (
     MailboxCodeTimeoutError,
     MailCodeProvider,
 )
-from ankama_launcher_emulator.web._client.mail_providers.manual import (
-    wait_for_code_with_manual_fallback,
-)
+
+from ankama_launcher_emulator.web._client.mail_providers.config import snapshot_confirmation_inbox
 
 ZAAP_GAME_ID = 102
 
@@ -25,15 +24,16 @@ logger = logging.getLogger(__name__)
 
 async def _request_and_validate_email_certificate(
     haapi: Haapi,
-    mail_provider: MailCodeProvider | None,
+    mail_provider: MailCodeProvider,
     timeout_seconds: int,
 ) -> DecipheredCertif:
+    await snapshot_confirmation_inbox(mail_provider)
     requested_at = datetime.now(UTC)
     domain = await asyncio.to_thread(haapi.get_security_code, "EMAIL")
     logger.info("[OAuth] Shield security code requested (domain=%s)", domain)
 
-    code = await wait_for_code_with_manual_fallback(
-        mail_provider, since=requested_at, timeout_seconds=timeout_seconds, email=haapi.login
+    code = await mail_provider.wait_for_code(
+        since=requested_at, timeout_seconds=timeout_seconds
     )
     if code is None:
         raise MailboxCodeTimeoutError(f"Timed out waiting for Shield/OTP code in mailbox for {haapi.login}")
@@ -46,7 +46,7 @@ async def _request_and_validate_email_certificate(
 async def resolve_shield(
     haapi: Haapi,
     account_info: SignOnResponse | None,
-    mail_provider: MailCodeProvider | None,
+    mail_provider: MailCodeProvider,
     started_at: datetime,
     *,
     timeout_seconds: int = 300,
@@ -63,8 +63,8 @@ async def resolve_shield(
         )
 
     logger.info("[OAuth] OTP required; waiting for code in mailbox...")
-    code = await wait_for_code_with_manual_fallback(
-        mail_provider, since=started_at, timeout_seconds=timeout_seconds, email=haapi.login
+    code = await mail_provider.wait_for_code(
+        since=started_at, timeout_seconds=timeout_seconds
     )
     if code is None:
         raise MailboxCodeTimeoutError(f"Timed out waiting for Shield/OTP code in mailbox for {haapi.login}")
@@ -76,7 +76,7 @@ async def resolve_shield(
 
 async def secure_apikey_via_email(
     haapi: Haapi,
-    mail_provider: MailCodeProvider | None,
+    mail_provider: MailCodeProvider,
     *,
     timeout_seconds: int = 300,
 ) -> DecipheredCertif | None:

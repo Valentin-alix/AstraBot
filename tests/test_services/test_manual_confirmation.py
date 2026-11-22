@@ -1,10 +1,12 @@
 import asyncio
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
+from unittest.mock import patch
 
 import pytest
 
-from ankama_launcher_emulator.web._client.mail_providers.manual import wait_for_code_with_manual_fallback
+from ankama_launcher_emulator.interfaces.mail_account import ImapAccountConfig, ManualAccountConfig, SmailProAccountConfig
+from ankama_launcher_emulator.web._client.mail_providers import config as mail_config
+from ankama_launcher_emulator.web._client.mail_providers.manual import ManualCodeInput
 from src.services.manual_confirmation import ManualConfirmationBroker, manual_confirmation
 
 
@@ -31,42 +33,42 @@ def test_requests_are_correlated_and_expiration_and_shutdown_release_waiters() -
     asyncio.run(scenario())
 
 
-def test_mailbox_result_closes_manual_request_and_cancellation_stops_polling() -> None:
+@pytest.mark.parametrize("config", [None, ManualAccountConfig()])
+def test_manual_provider_submits_code_through_broker(config: ManualAccountConfig | None) -> None:
     async def scenario() -> None:
         identifiers: list[str] = []
-        closed: list[str] = []
-        manual_confirmation.install(lambda request: identifiers.append(request.identifier), closed.append)
-        provider = AsyncMock()
-        provider.wait_for_code.return_value = "123456"
-        assert (
-            await wait_for_code_with_manual_fallback(
-                provider, since=datetime.now(UTC), timeout_seconds=5, email="mail@example.com"
-            )
-            == "123456"
-        )
-        assert identifiers[-1] in closed
-        cancelled = asyncio.Event()
-
-        async def wait_forever(**_kwargs: object) -> str:
-            try:
-                await asyncio.Event().wait()
-            finally:
-                cancelled.set()
-            return ""
-
-        provider.wait_for_code.side_effect = wait_forever
-        task = asyncio.create_task(
-            wait_for_code_with_manual_fallback(
-                provider, since=datetime.now(UTC), timeout_seconds=5, email="mail@example.com"
-            )
-        )
+        manual_confirmation.install(lambda request: identifiers.append(request.identifier), lambda _: None)
+        with patch.object(mail_config.MailAccountController, "get_config", return_value=config):
+            provider = mail_config.resolve_mail_provider("mail@example.com")
+        task = asyncio.create_task(provider.wait_for_code(since=datetime.now(UTC), timeout_seconds=5))
         await asyncio.sleep(0)
-        await asyncio.sleep(0)
-        manual_confirmation.submit(identifiers[-1], None)
-        assert await task is None
-        assert cancelled.is_set()
+        manual_confirmation.submit(identifiers[0], "123456")
+        assert await task == "123456"
 
     try:
         asyncio.run(scenario())
+    finally:
+        manual_confirmation.shutdown()
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        ImapAccountConfig(host="imap.example.com", username="user", password="password"),
+        SmailProAccountConfig(email="mail@example.com", api_key="key", timestamp=0),
+    ],
+)
+def test_automatic_provider_times_out_without_prompt(config: ImapAccountConfig | SmailProAccountConfig) -> None:
+    requests: list[str] = []
+    manual_confirmation.install(lambda request: requests.append(request.identifier), lambda _: None)
+    try:
+        with (
+            patch.object(mail_config.MailAccountController, "get_config", return_value=config),
+            patch.object(ManualCodeInput, "start") as start_terminal,
+        ):
+            provider = mail_config.resolve_mail_provider("mail@example.com")
+            assert asyncio.run(provider.wait_for_code(since=datetime.now(UTC), timeout_seconds=0)) is None
+            start_terminal.assert_not_called()
+        assert requests == []
     finally:
         manual_confirmation.shutdown()

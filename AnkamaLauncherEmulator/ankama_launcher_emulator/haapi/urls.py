@@ -25,7 +25,7 @@ REDIRECT_URI = "https://auth.ankama.com/login-authorized"
 def build_register_url(state: str | None = None) -> str:
     redirect_uri = REDIRECT_URI
     if state is not None:
-        redirect_uri = f"{REDIRECT_URI}?state%3{state}"
+        redirect_uri = f"{REDIRECT_URI}?{urlencode({'state': state})}"
     params = urlencode(
         {
             "origin_tracker": ORIGIN_TRACKER,

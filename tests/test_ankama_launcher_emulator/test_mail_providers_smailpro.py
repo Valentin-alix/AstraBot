@@ -69,7 +69,7 @@ class TestGenerateRandomMailbox(TestCase):
             patch.object(smailpro_module, "disable_outlook_generation") as disable_outlook_generation,
         ):
             with self.assertRaises(smailpro_module.HaapiHttpError):
-                provider._recent_messages(datetime.now(UTC))
+                provider._inbox_messages()
 
         disable_outlook_generation.assert_called_once_with()
 
@@ -138,7 +138,7 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
                     {
                         "mid": "m1",
                         "textFrom": "Ankama",
-                        "textDate": "Thu, 18 Jun 2026 10:01:00 +0000",
+                        "textDate": "Thu, 18 Jun 2026 09:59:44 +0000",
                     },
                 ]
             }
@@ -160,7 +160,7 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
         self.assertEqual(code, "123456")
         inbox_call = get.call_args_list[0]
         self.assertTrue(inbox_call.args[0].endswith("/v1/temp_gmail/inbox"))
-        self.assertEqual(inbox_call.kwargs["params"]["timestamp"], 1781776790)
+        self.assertEqual(inbox_call.kwargs["params"]["timestamp"], 1723680000)
         self.assertEqual(len(logs.output), 1)
 
     def test_ignores_non_ankama_message_with_six_digit_tracking_identifier(self) -> None:
@@ -187,29 +187,30 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
         )
 
         with patch("requests.Session.get", side_effect=[inbox_response, message_response]) as get:
-            code = provider._find_code(since=datetime(2026, 6, 18, 10, 0, tzinfo=UTC))
+            code = provider._find_code(frozenset())
 
         self.assertEqual(code, "123456")
         self.assertEqual(get.call_count, 2)
         self.assertEqual(get.call_args_list[1].kwargs["params"]["mid"], "ankama")
 
-    def test_uses_a_new_since_boundary_for_authentication_after_registration(self) -> None:
+    async def test_authentication_ignores_messages_already_visible_before_request(self) -> None:
         registration_inbox = _response(
             {
                 "messages": [
-                    {"mid": "registration", "textFrom": "Ankama"},
+                    {"mid": "registration", "textFrom": "Ankama", "textDate": "2026-06-18T10:01:00Z"},
                 ]
             }
         )
         authentication_inbox = _response(
             {
                 "messages": [
-                    {"mid": "authentication", "textFrom": "Ankama"},
+                    {"mid": "older", "textFrom": "Ankama", "textDate": "2026-06-18T10:02:00Z"},
+                    {"mid": "authentication", "textFrom": "Ankama", "textDate": "2026-06-18T09:50:00Z"},
                 ]
             }
         )
         provider = SmailProMailProvider(
-            SmailProSettings(api_key="api-key", email="temp@gmail.com", kind="gmail", timestamp=1723680000)
+            SmailProSettings(api_key="api-key", email="temp@outlook.com", kind="outlook", timestamp=1723680000)
         )
 
         with patch(
@@ -217,17 +218,23 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
             side_effect=[
                 registration_inbox,
                 _response({"body": "Code inscription 123456"}),
+                _response({"messages": [{"mid": "older"}]}),
                 authentication_inbox,
                 _response({"body": "Code authentification 654321"}),
             ],
         ) as get:
-            registration_code = provider._find_code(since=datetime(2026, 6, 18, 10, 0, tzinfo=UTC))
-            authentication_code = provider._find_code(since=datetime(2026, 6, 18, 10, 5, tzinfo=UTC))
+            registration_code = provider._find_code(frozenset())
+            await provider.snapshot_inbox()
+            with patch.object(smailpro_module, "SMAILPRO_INITIAL_DELAY_SECONDS", 0):
+                authentication_code = await provider.wait_for_code(
+                    since=datetime(2026, 6, 18, 10, 5, tzinfo=UTC), timeout_seconds=5
+                )
 
         self.assertEqual(registration_code, "123456")
         self.assertEqual(authentication_code, "654321")
-        self.assertEqual(get.call_args_list[0].kwargs["params"]["timestamp"], 1781776790)
-        self.assertEqual(get.call_args_list[2].kwargs["params"]["timestamp"], 1781777090)
+        self.assertEqual(get.call_args_list[0].kwargs["params"]["timestamp"], 1723680000)
+        self.assertEqual(get.call_args_list[2].kwargs["params"]["timestamp"], 1723680000)
+        self.assertEqual(get.call_args_list[4].kwargs["params"]["mid"], "authentication")
 
     def test_recreated_provider_skips_registration_message_already_consumed(self) -> None:
         settings = SmailProSettings(
@@ -246,12 +253,21 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
                 mark_message_consumed=consumed_message_ids.append,
             )
         )
-        registration_inbox = _response({"messages": [{"mid": "registration", "textFrom": "Ankama"}]})
+        registration_message = {
+            "mid": "registration",
+            "textFrom": "Ankama",
+            "textDate": "Thu, 18 Jun 2026 10:05:00 +0000",
+        }
+        registration_inbox = _response({"messages": [registration_message]})
         authentication_inbox = _response(
             {
                 "messages": [
-                    {"mid": "registration", "textFrom": "Ankama"},
-                    {"mid": "authentication", "textFrom": "Ankama"},
+                    registration_message,
+                    {
+                        "mid": "authentication",
+                        "textFrom": "Ankama",
+                        "textDate": "Thu, 18 Jun 2026 10:06:00 +0000",
+                    },
                 ]
             }
         )
@@ -265,9 +281,7 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
                 _response({"body": "Code authentification 654321"}),
             ],
         ) as get:
-            registration_code = registration_provider._find_code(
-                since=datetime(2026, 6, 18, 10, 0, tzinfo=UTC)
-            )
+            registration_code = registration_provider._find_code(frozenset())
             authentication_provider = SmailProMailProvider(
                 SmailProSettings(
                     api_key=settings.api_key,
@@ -277,9 +291,7 @@ class TestSmailProMailProviderWaitForCode(IsolatedAsyncioTestCase):
                     consumed_message_ids=frozenset(consumed_message_ids),
                 )
             )
-            authentication_code = authentication_provider._find_code(
-                since=datetime(2026, 6, 18, 10, 5, tzinfo=UTC)
-            )
+            authentication_code = authentication_provider._find_code(frozenset())
 
         self.assertEqual(registration_code, "123456")
         self.assertEqual(authentication_code, "654321")

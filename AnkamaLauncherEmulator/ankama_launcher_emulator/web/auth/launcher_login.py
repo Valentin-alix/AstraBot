@@ -5,12 +5,7 @@ from datetime import UTC, datetime
 from typing import cast
 from urllib.parse import urlencode
 
-from dotenv import load_dotenv
-from playwright.async_api import Page, Response
-from pydantic import ValidationError
 import requests
-from requests import HTTPError
-
 from ankama_launcher_emulator.consts import ENV_PATH
 from ankama_launcher_emulator.controller.bot_storage import (
     BotStorageController,
@@ -55,6 +50,7 @@ from ankama_launcher_emulator.web._client.mail_providers.base import (
 )
 from ankama_launcher_emulator.web._client.mail_providers.config import (
     resolve_mail_provider,
+    snapshot_confirmation_inbox,
 )
 from ankama_launcher_emulator.web._client.pkce import (
     generate_code_challenge,
@@ -75,6 +71,11 @@ from ankama_launcher_emulator.web.auth.shield import (
     resolve_shield,
     secure_apikey_via_email,
 )
+from dotenv import load_dotenv
+from playwright.async_api import Page, Response
+from pydantic import ValidationError
+from requests import HTTPError
+
 TOKEN_URL = "https://auth.ankama.com/token"
 PROXY_REJECTED_ERROR_TEXT = "connexion non-autorisée : votre adresse ip est cachée."
 
@@ -173,7 +174,7 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
     code_verifier = generate_code_verifier()
     login_url = build_login_url(generate_code_challenge(code_verifier))
     try:
-        async with launch_browser_context(proxy_url=options.proxy_url) as context:
+        async with launch_browser_context(proxy_url=options.proxy_url, headless=False) as context:
             page = await context.new_page()
             logger.info("[OAuth] Navigating to login page...")
             try:
@@ -187,7 +188,9 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
             except Exception as err:
                 if _is_waf_or_cloudfront_error(err):
                     MailAccountController().quarantine(options.email, "Confirmed WAF/CloudFront block")
-                    logger.error("[OAuth] WAF/CloudFront blocked %s; removed stored mailbox account.", options.email)
+                    logger.error(
+                        "[OAuth] WAF/CloudFront blocked %s; removed stored mailbox account.", options.email
+                    )
                 logger.error(err)
                 return AuthenticationResult(success=False, email=options.email, error=str(err))
             logger.info("[OAuth] Waiting for WAF challenge...")
@@ -195,6 +198,7 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
             logger.info(
                 f"[OAuth] Auto-filling credentials, email : {options.email}, password {options.password}"
             )
+            await snapshot_confirmation_inbox(options.mail_provider)
             await fill_credentials_and_submit(page, options.email, options.password)
             logger.info("[OAuth] Credentials submitted, URL: %s", page.url)
             logger.info("[OAuth] Waiting for authorization code (up to 120s)...")
@@ -304,7 +308,9 @@ async def authenticate(options: AuthenticationOptions) -> AuthenticationResult:
     except Exception as exc:
         if _is_waf_or_cloudfront_error(exc):
             MailAccountController().quarantine(options.email, "Confirmed WAF/CloudFront block")
-            logger.error("[OAuth] WAF/CloudFront blocked %s; quarantined stored mailbox account.", options.email)
+            logger.error(
+                "[OAuth] WAF/CloudFront blocked %s; quarantined stored mailbox account.", options.email
+            )
             return AuthenticationResult(success=False, email=options.email, error=str(exc))
         logger.exception("[OAuth] Authentication failed: %s", exc)
         return AuthenticationResult(success=False, email=options.email, error=str(exc))

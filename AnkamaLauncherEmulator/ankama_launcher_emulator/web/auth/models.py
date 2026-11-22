@@ -19,7 +19,7 @@ class RegistrationOptions:
     email: str
     password: str
     identity: RegistrationIdentity
-    mail_provider: MailCodeProvider | None
+    mail_provider: MailCodeProvider
     schedule_profile: str | None = None
     proxy_url: str | None = None
     confirmation_timeout_seconds: int = 1200
@@ -41,7 +41,7 @@ class RegistrationResult:
 class AuthenticationOptions:
     email: str
     password: str
-    mail_provider: MailCodeProvider | None
+    mail_provider: MailCodeProvider
     proxy_url: str | None = None
     shield_timeout_seconds: int = 1200
 

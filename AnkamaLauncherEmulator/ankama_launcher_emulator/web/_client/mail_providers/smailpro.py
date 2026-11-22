@@ -8,9 +8,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 import requests
-from pydantic import BaseModel
-
-from ankama_launcher_emulator.utils.internet import raise_for_status_with_content
 from ankama_launcher_emulator.consts import (
     SMAILPRO_OUTLOOK_DISABLED_UNTIL_PATH,
 )
@@ -19,19 +16,20 @@ from ankama_launcher_emulator.utils.atomic_file import (
     acquire_file_lock,
     atomic_write_text,
 )
+from ankama_launcher_emulator.utils.internet import raise_for_status_with_content
 from ankama_launcher_emulator.web._client.mail_providers.manual import (
     extract_confirmation_code,
 )
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 SMAILPRO_BASE_URL = "https://app.sonjj.com"
 SMAILPRO_CODE_TIMEOUT_SECONDS = 2 * 60
-SMAILPRO_INITIAL_DELAY_SECONDS = 30.0
+SMAILPRO_INITIAL_DELAY_SECONDS = 15.0
 SMAILPRO_POLL_INTERVAL_SECONDS = 15.0
 SMAILPRO_REQUEST_TIMEOUT_SECONDS = 15.0
-SMAILPRO_RECEIPT_GRACE_SECONDS = 10
 SMAILPRO_OUTLOOK_DISABLE_DURATION = timedelta(days=1)
 
 RandomMailboxKind = Literal["gmail", "outlook"]
@@ -125,25 +123,31 @@ class SmailProMailProvider:
         self._session = _session(settings.api_key)
         self._consumed_message_ids = set(settings.consumed_message_ids)
 
+        self._existing_message_ids: frozenset[str] = frozenset()
+
+    async def snapshot_inbox(self) -> None:
+        messages = await asyncio.to_thread(self._inbox_messages)
+        self._existing_message_ids = frozenset(
+            mid for message in messages if isinstance(mid := message.get("mid"), str)
+        )
+
     async def wait_for_code(self, *, since: datetime, timeout_seconds: int) -> str | None:
+        existing_message_ids = self._existing_message_ids
         effective_timeout_seconds = min(timeout_seconds, SMAILPRO_CODE_TIMEOUT_SECONDS)
         deadline = time.monotonic() + effective_timeout_seconds
         await asyncio.sleep(min(SMAILPRO_INITIAL_DELAY_SECONDS, effective_timeout_seconds))
         while time.monotonic() < deadline:
-            code = await asyncio.to_thread(self._find_code, since)
+            code = await asyncio.to_thread(self._find_code, existing_message_ids)
             if code is not None:
                 return code
             remaining_seconds = deadline - time.monotonic()
             await asyncio.sleep(min(SMAILPRO_POLL_INTERVAL_SECONDS, remaining_seconds))
         return None
 
-    def _find_code(self, since: datetime) -> str | None:
-        messages = self._recent_messages(since)
-        logger.debug("[SmailPro] %d recent message(s) for %s", len(messages), self._settings.email)
-        for message in messages:
+    def _find_code(self, existing_message_ids: frozenset[str]) -> str | None:
+        for message in self._inbox_messages():
             mid = message.get("mid")
-            if not isinstance(mid, str):
-                logger.debug("[SmailPro] Message without mid, skipping.")
+            if not isinstance(mid, str) or mid in existing_message_ids:
                 continue
             if mid in self._consumed_message_ids:
                 logger.debug("[SmailPro] Skipping consumed Ankama message mid=%s.", mid)
@@ -165,16 +169,10 @@ class SmailProMailProvider:
             return code
         return None
 
-    def _recent_messages(self, since: datetime) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {
-            "email": self._settings.email,
-            "timestamp": max(
-                self._settings.timestamp, int(since.timestamp()) - SMAILPRO_RECEIPT_GRACE_SECONDS
-            ),
-        }
+    def _inbox_messages(self) -> list[dict[str, Any]]:
         response = self._session.get(
             f"{SMAILPRO_BASE_URL}/v1/{_RANDOM_MAILBOX_PATH[self._settings.kind]}/inbox",
-            params=params,
+            params={"email": self._settings.email, "timestamp": self._settings.timestamp},
             timeout=SMAILPRO_REQUEST_TIMEOUT_SECONDS,
         )
 

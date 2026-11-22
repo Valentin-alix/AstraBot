@@ -4,6 +4,8 @@ from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, call, patch
 from urllib.parse import parse_qs, urlparse
 
+from playwright.async_api import Error as PlaywrightError
+
 from ankama_launcher_emulator.controller.bot_storage import (
     BotStorageController,
 )
@@ -41,12 +43,12 @@ from tests.fixtures.launcher import FakeBrowserContext, FakeMailProvider, Isolat
 
 class TestRegistration(IsolatedLauncherStorageTestCase):
     def test_build_register_url_with_state_embeds_state_in_redirect_uri(self) -> None:
-        params = parse_qs(urlparse(build_register_url("abc123")).query)
+        state = "abc+123&="
+        params = parse_qs(urlparse(build_register_url(state)).query)
+        redirect = urlparse(params["redirect_uri"][0])
 
-        self.assertEqual(
-            params["redirect_uri"],
-            ["https://auth.ankama.com/login-authorized?state%3abc123"],
-        )
+        self.assertEqual(redirect._replace(query="").geturl(), REDIRECT_URI)
+        self.assertEqual(parse_qs(redirect.query), {"state": [state]})
 
     def test_generate_code_challenge_is_pkce_sha256_base64url(self) -> None:
         self.assertEqual(
@@ -169,6 +171,33 @@ class TestRegisterAccount(IsolatedAsyncioTestCase):
 
         self.assertTrue(result.accepted)
         self.assertIsNone(result.failure_reason)
+
+    async def test_confirmation_submission_recognizes_callback_code_when_navigation_raises(self) -> None:
+        page = MagicMock()
+        page.url = "https://auth.ankama.com/register/ankama/code"
+        page.locator.return_value.count = AsyncMock(return_value=1)
+        navigation = page.expect_navigation.return_value
+        navigation.__aenter__.return_value = navigation
+        navigation.value = asyncio.get_running_loop().create_future()
+        response = MagicMock(status=400)
+        response.request.url = f"{REDIRECT_URI}?code=authorization-code&state=test"
+        response.request.is_navigation_request.return_value = True
+        response.request.frame = page.main_frame
+        response.request.redirected_from.method = "POST"
+        response.request.redirected_from.url = page.url
+
+        async def submit(*_args: object) -> None:
+            listener = dict(event.args for event in page.on.call_args_list)["response"]
+            listener(response)
+            navigation.value.set_exception(PlaywrightError("net::ERR_HTTP_RESPONSE_CODE_FAILURE"))
+
+        with (
+            patch.object(registration_module, "human_type_selector", new=AsyncMock()),
+            patch.object(registration_module, "human_click_selector", side_effect=submit),
+        ):
+            result = await registration_module._submit_confirmation_code(page, "123456")
+
+        self.assertTrue(result.accepted)
 
     async def test_confirmation_submission_classifies_cloudfront_without_invalid_code_rejection(self) -> None:
         page = MagicMock()
@@ -572,17 +601,12 @@ class TestRegisterAccount(IsolatedAsyncioTestCase):
         page.url = "https://auth.ankama.com/register/ankama/code"
 
         with (
-            patch.object(
-                registration_module,
-                "wait_for_code_with_manual_fallback",
-                new=AsyncMock(return_value=None),
-            ),
             patch.object(registration_module, "MailAccountController") as mail_account_controller,
             self.assertRaises(registration_module.MailboxCodeTimeoutError),
         ):
             await registration_module._handle_confirmation_code(
                 page,
-                _registration_options(confirmation_timeout_seconds=1),
+                replace(_registration_options(confirmation_timeout_seconds=1), mail_provider=FakeMailProvider(code=None)),
                 started_at=registration_module.datetime.now(registration_module.UTC),
             )
 

@@ -7,11 +7,9 @@ import threading
 import time
 from datetime import datetime
 from html import unescape
-from src.services.manual_confirmation import manual_confirmation
 
-from ankama_launcher_emulator.web._client.mail_providers.base import (
-    MailCodeProvider,
-)
+
+from src.services.manual_confirmation import manual_confirmation
 
 logger = logging.getLogger(__name__)
 
@@ -103,64 +101,15 @@ async def _sleep_until_manual_code(manual: ManualCodeInput | None, seconds: floa
         await asyncio.sleep(min(MANUAL_CODE_POLL_INTERVAL_SECONDS, remaining))
 
 
-async def wait_for_code_with_manual_fallback(
-    provider: MailCodeProvider | None,
-    *,
-    since: datetime,
-    timeout_seconds: int,
-    email: str = "",
-) -> str | None:
-    if manual_confirmation.enabled:
-        manual_task = asyncio.create_task(manual_confirmation.wait(email, timeout_seconds))
-        tasks = {manual_task}
-        if provider is not None:
-            tasks.add(asyncio.create_task(provider.wait_for_code(since=since, timeout_seconds=timeout_seconds)))
-        try:
-            while True:
-                done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-                if manual_task in done:
-                    return manual_task.result()
-                for task in done:
-                    code = task.result()
-                    if code is not None:
-                        return code
-                    tasks.remove(task)
-        finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-    deadline = time.monotonic() + timeout_seconds
-    manual = ManualCodeInput.start()
-    if manual is not None:
-        manual.drain()
-        logger.info(
-            "[Mailbox] Waiting for a confirmation code — you can also type it here (6 digits + Enter)."
-        )
-    if provider is None:
+class ManualMailCodeProvider:
+    def __init__(self, email: str) -> None:
+        self._email = email
+
+    async def wait_for_code(self, *, since: datetime, timeout_seconds: int) -> str | None:
+        if manual_confirmation.enabled:
+            return await manual_confirmation.wait(self._email, timeout_seconds)
+        manual = ManualCodeInput.start()
+        if manual is not None:
+            manual.drain()
+            logger.info("[Mailbox] Type your confirmation code (6 digits + Enter).")
         return await _sleep_until_manual_code(manual, timeout_seconds)
-    provider_task = asyncio.create_task(provider.wait_for_code(since=since, timeout_seconds=timeout_seconds))
-    manual_wait: asyncio.Task[str | None] | None = None
-    try:
-        while time.monotonic() < deadline:
-            remaining = deadline - time.monotonic()
-            manual_wait = asyncio.create_task(_sleep_until_manual_code(manual, remaining))
-            done, _ = await asyncio.wait(
-                {provider_task, manual_wait}, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
-            )
-            if manual_wait in done:
-                manual_code = manual_wait.result()
-                if manual_code is not None:
-                    return manual_code
-            if provider_task in done:
-                return provider_task.result()
-            if manual_wait not in done:
-                manual_wait.cancel()
-        return None
-    finally:
-        tasks = [provider_task]
-        if manual_wait is not None:
-            tasks.append(manual_wait)
-        for task in tasks:
-            if not task.done():
-                task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
