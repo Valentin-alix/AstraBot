@@ -1,4 +1,5 @@
 from collections.abc import Callable, Sequence
+from math import isfinite
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -47,15 +48,23 @@ def get_average_best_similarity_sequences[T](
         return 0.0
     n = len(left)
     m = len(right)
-    cost = np.zeros((n, m), dtype=float)
-    for index_left, part_left in enumerate(left):
-        for index_right, part_right in enumerate(right):
-            cost[index_left, index_right] = scorer(part_left, part_right)
+    if n == m == 1:
+        score = float(scorer(left[0], right[0]))
+        if isfinite(score):
+            return score or 0.0
+        cost = np.array([[score]], dtype=float)
+    else:
+        cost = np.empty((n, m), dtype=float)
+        for index_left, part_left in enumerate(left):
+            for index_right, part_right in enumerate(right):
+                cost[index_left, index_right] = scorer(part_left, part_right)
 
+    return average_assignment_similarity(cost)
+
+
+def average_assignment_similarity(cost: np.ndarray) -> float:
     row_ind, col_ind = linear_sum_assignment(cost, maximize=True)
 
     total_similarity = sum(cost[i, j] for i, j in zip(row_ind, col_ind, strict=True))
 
-    max_length = max(n, m)
-
-    return total_similarity / max_length
+    return total_similarity / max(cost.shape)

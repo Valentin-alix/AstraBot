@@ -41,7 +41,7 @@ def resolve_obf_game_snapshot(
             return ObfGameSnapshot(game_assembly=snapshot_assembly, metadata=snapshot_metadata)
 
     snapshot_date = today or datetime.now(tz=UTC).astimezone().date()
-    snapshot_dir = snapshots_root / snapshot_date.strftime("%d_%m_%Y")
+    snapshot_dir = snapshots_root / snapshot_date.isoformat()
     snapshot_dir.mkdir(parents=True, exist_ok=True)
     snapshot_assembly = snapshot_dir / _GAME_ASSEMBLY_NAME
     snapshot_metadata = snapshot_dir / _METADATA_NAME

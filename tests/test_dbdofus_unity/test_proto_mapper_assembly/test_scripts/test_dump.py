@@ -82,6 +82,11 @@ class TestDumpScript:
         ) -> None:
             il2cpp_calls.append((game_assembly_path, metadata_path, output_folder))
             self._write_dump_cs(output_folder)
+            (output_folder / "cs" / "Core.cs").write_text("class Core {}", encoding="utf-8")
+            (output_folder / "cs" / "__Generated.cs").write_text("", encoding="utf-8")
+            (output_folder / "il2cpp.json").write_text("{}", encoding="utf-8")
+            (output_folder / "dll").mkdir()
+            (output_folder / "dll" / "Ankama.Dofus.Protocol.Game.dll").write_bytes(b"shim")
 
         def fake_run_protodec(assembly_path: Path, proto_output: Path) -> None:
             protodec_calls.append((assembly_path, proto_output))
@@ -116,11 +121,19 @@ class TestDumpScript:
         ):
             dump_script.update_protos(use_obf=True, obf_dir=obf_dir)
 
-        assert il2cpp_calls == [(obf_dir / "GameAssembly.dll", obf_dir / "global-metadata.dat", obf_dir)]
+        [(assembly, metadata, staging)] = il2cpp_calls
+        assert assembly == obf_dir / "GameAssembly.dll"
+        assert metadata == obf_dir / "global-metadata.dat"
+        assert staging != obf_dir
         assert protodec_calls == [
-            (obf_dir / "dll" / "Ankama.Dofus.Protocol.Game.dll", obf_dir / "game_messages.proto")
+            (staging / "dll" / "Ankama.Dofus.Protocol.Game.dll", obf_dir / "game_messages.proto")
         ]
-        assert protoc_calls == [(obf_dir / "game_messages.proto", obf_dir)]
+        assert not protoc_calls
+        assert (obf_dir / dump_script.PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH).is_file()
+        assert (obf_dir / "cs" / "Core.cs").is_file()
+        assert (obf_dir / "il2cpp.json").is_file()
+        assert not (obf_dir / "cs" / "__Generated.cs").exists()
+        assert not (obf_dir / "dll").exists()
         assert ida_calls == [
             {
                 "use_non_obf": False,
@@ -273,6 +286,8 @@ class TestDumpScript:
     def test_update_protos_archives_previous_obf_dump_next_to_matching_snapshot(self, tmp_path: Path) -> None:
         obf_output_dir = tmp_path / "obf"
         obf_output_dir.mkdir()
+        non_obf_output_dir = tmp_path / "non_obf"
+        self._write_dump_cs(non_obf_output_dir)
         snapshots_root = tmp_path / "snapshots"
 
         old_snapshot_dir = snapshots_root / "14_07_2026"
@@ -294,6 +309,7 @@ class TestDumpScript:
         def run_update(game_assembly: Path) -> None:
             with (
                 patch.object(dump_script, "OBFUSCATED_DATA_DIR", obf_output_dir),
+                patch.object(dump_script, "NON_OBFUSCATED_DATA_DIR", non_obf_output_dir),
                 patch.object(dump_script, "OBF_GAME_ASSEMBLY_DLL", game_assembly),
                 patch.object(dump_script, "OBF_IL2CPP_METADATA_FILE", tmp_path / "global-metadata.dat"),
                 patch.object(dump_script, "OBF_PROTO_OUTPUT", tmp_path / "protos"),
@@ -314,11 +330,23 @@ class TestDumpScript:
 
         (obf_output_dir / "cs").mkdir(exist_ok=True)
         (obf_output_dir / "cs" / "Sample.cs").write_text("class Sample {}", encoding="utf-8")
+        (obf_output_dir / "cs" / "Core.cs").write_text("class Core {}", encoding="utf-8")
+        (obf_output_dir / "__init__.py").touch()
+        (obf_output_dir / "dll").mkdir()
+        (obf_output_dir / "dll" / "__Generated").touch()
+        pins = '{"pairs":[{"obf":"old_alias","non_obf":"OldMessage"}]}'
+        (tmp_path / "pinned_pairs.json").write_text(pins, encoding="utf-8")
 
         run_update(new_game_assembly)
 
-        assert (old_snapshot_dir / "cs" / "Sample.cs").read_text(encoding="utf-8") == "class Sample {}"
-        assert (old_snapshot_dir / dump_script.GAME_ASSEMBLY_MARKER_NAME).exists()
+        assert (old_snapshot_dir / "cs" / "Core.cs").read_text(encoding="utf-8") == "class Core {}"
+        assert not (old_snapshot_dir / "cs" / "Sample.cs").exists()
+        assert not (old_snapshot_dir / "__init__.py").exists()
+        assert not (old_snapshot_dir / "dll").exists()
+        assert (old_snapshot_dir / "pinned_pairs.json").read_text(encoding="utf-8") == pins
+        assert not (old_snapshot_dir / dump_script.GAME_ASSEMBLY_MARKER_NAME).exists()
+        assert not (old_snapshot_dir / dump_script.DUMP_CS_MARKER_NAME).exists()
+        assert not (old_snapshot_dir / "non_obf").exists()
         assert not (new_snapshot_dir / "cs").exists()
 
     def test_main_rejects_custom_obf_dir_with_non_obf_mode(self, tmp_path: Path) -> None:

@@ -5,7 +5,6 @@ from typing import Literal, NamedTuple, TypeGuard, override
 from pydantic import BaseModel, RootModel, model_validator
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.counter_profile import CounterProfile
-from DBDofusUnity.proto_mapper_assembly.interfaces.field_comparison import FieldComparison
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
     DumpCSMessage,
     DumpCSMessageField,
@@ -17,6 +16,7 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import (
     FieldCategoryEnum,
     FieldTypeShape,
 )
+from DBDofusUnity.proto_mapper_assembly.interfaces.field_comparison import FieldComparison
 from DBDofusUnity.proto_mapper_assembly.interfaces.function_access_signature import (
     AccessAtomKey,
     AccessAtomSequenceKey,
@@ -285,6 +285,13 @@ class MessageAccessSignature(BaseModel):
     def function_similarity_keys(self) -> tuple[FunctionSimilarityKey, ...]:
         # Deduplicate IL2CPP aliases in stable order: set iteration would change assignment tie-breaks.
         return tuple(dict.fromkeys(sig.similarity_key for sig in self.function_signatures))
+
+    @cached_property
+    def function_positions_by_role(self) -> dict[tuple[ReturnRole, bool], list[int]]:
+        positions: dict[tuple[ReturnRole, bool], list[int]] = defaultdict(list)
+        for index, key in enumerate(self.function_similarity_keys):
+            positions[key.return_role, key.takes_message_parameter].append(index)
+        return positions
 
     @cached_property
     def declared_proto_fields(self) -> tuple[DumpCSMessageField, ...]:

@@ -123,9 +123,12 @@ def field_access_multiset_similarity(left: AccessAtomSequenceKey, right: AccessA
             grouped.setdefault(key, []).append(access)
 
     total_similarity = 0.0
-    for key in left_by_kind.keys() | right_by_kind.keys():
-        left_group = sorted(left_by_kind.get(key, ()), key=lambda access: access.index_in_function)
-        right_group = sorted(right_by_kind.get(key, ()), key=lambda access: access.index_in_function)
+    for key, left_accesses in left_by_kind.items():
+        right_accesses = right_by_kind.get(key)
+        if right_accesses is None:
+            continue
+        left_group = sorted(left_accesses, key=lambda access: access.index_in_function)
+        right_group = sorted(right_accesses, key=lambda access: access.index_in_function)
         shared_length = min(len(left_group), len(right_group))
         total_similarity += sum(
             _access_atom_similarity_from_keys(left_access, right_access)

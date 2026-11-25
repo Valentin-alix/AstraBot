@@ -4,6 +4,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from DBDofusUnity.consts import (
     DUMP_CS_MARKER_NAME,
@@ -31,6 +32,7 @@ from DBDofusUnity.proto_mapper_assembly.helpers.obf_game_snapshot import (
     find_snapshot_dir_by_game_assembly_mtime_ns,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.pinned_pairs import PinnedPairsConfig
+from DBDofusUnity.proto_mapper_assembly.parsers.dump_cs_parser import iter_tracking_cs_paths
 from DBDofusUnity.proto_mapper_assembly.pipeline import run_pipeline
 from scripts.mapping.ida_tracer.main import run_ida_script
 
@@ -94,20 +96,22 @@ def update_protos(*, use_obf: bool, obf_dir: Path | None = None, force: bool = F
     if force or is_game_assembly_changed_since_last_run(target):
         if use_obf and obf_dir is None:
             _archive_previous_obf_dump(target)
-        run_il2cpp_inspector(target.game_assembly, target.metadata, target.output_folder)
-        run_protodec(target.output_folder / "dll" / "Ankama.Dofus.Protocol.Game.dll", target.proto_output)
+        if obf_dir is None:
+            _export_dump(target, target.output_folder)
+        else:
+            with TemporaryDirectory(prefix="astrabot-dump-") as temporary_dir:
+                staging = Path(temporary_dir)
+                _export_dump(target, staging)
+                _copy_dump_inputs(staging, target.output_folder)
 
         if use_obf:
             if not force and not does_dump_cs_changed_since_last_run(target):
                 _record_game_assembly_mtime(target)
                 return
 
-        if target.proto_output.is_file():
-            python_output_folder = target.proto_output.parent
-        else:
-            python_output_folder = target.proto_output
-
-        gen_python_from_protoc(target.proto_output, python_output_folder)
+        if obf_dir is None:
+            python_output_folder = target.proto_output.parent if target.proto_output.is_file() else target.proto_output
+            gen_python_from_protoc(target.proto_output, python_output_folder)
 
         if target.include_ida_trace:
             print("running ida script...")
@@ -146,9 +150,38 @@ def _archive_previous_obf_dump(target: ProtoDumpTarget) -> None:
         )
         return
 
-    shutil.copytree(target.output_folder, snapshot_dir, dirs_exist_ok=True)
-    shutil.copytree(NON_OBFUSCATED_DATA_DIR, snapshot_dir / "non_obf", dirs_exist_ok=True)
+    _archive_dump_inputs(target.output_folder, snapshot_dir)
     shutil.copy2(GAME_MAPPINGS_JSON_FILE, snapshot_dir / GAME_MAPPINGS_JSON_FILE.name)
+    if PINNED_PAIRS_FILE.is_file():
+        shutil.copy2(PINNED_PAIRS_FILE, snapshot_dir / PINNED_PAIRS_FILE.name)
+
+
+def _export_dump(target: ProtoDumpTarget, output_folder: Path) -> None:
+    run_il2cpp_inspector(target.game_assembly, target.metadata, output_folder)
+    run_protodec(output_folder / "dll" / "Ankama.Dofus.Protocol.Game.dll", target.proto_output)
+
+
+def _copy_dump_inputs(source: Path, destination: Path) -> None:
+    for dump in iter_tracking_cs_paths(source / "cs"):
+        (destination / "cs").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(dump, destination / "cs" / dump.name)
+    metadata = source / "il2cpp.json"
+    if metadata.is_file():
+        destination.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(metadata, destination / metadata.name)
+
+
+def _archive_dump_inputs(source: Path, destination: Path) -> None:
+    _copy_dump_inputs(source, destination)
+    for name in (
+        "proto_accesses.json",
+        "proto_accesses.override.json",
+        "Ankama.Dofus.Protocol.Game.override.json",
+    ):
+        artifact = source / name
+        if artifact.is_file():
+            destination.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(artifact, destination / name)
 
 
 def _clear_mapping_inputs_before_pipeline() -> None:

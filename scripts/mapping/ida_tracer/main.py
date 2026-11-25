@@ -65,12 +65,15 @@ def run_ida_script(
         selected_database = _select_ida_database(database_path or OBF_GAME_ASSEMBLY_DLL_I64)
 
     environment["PROTO_TRACER_BASE_DIR"] = str(selected_base_dir)
-    database = str(selected_database)
+    command = [str(ida_exe), "-A"]
+    if selected_database.suffix.lower() == ".dll":
+        command.append("-Opdb:off")
+    command.extend((f"-S{script_path!s}", str(selected_database)))
 
     stop_progress_event, progress_thread = start_progress_watcher(progress_path)
     try:
         process = subprocess.Popen(
-            [str(ida_exe), "-A", f"-S{script_path!s}", database],
+            command,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

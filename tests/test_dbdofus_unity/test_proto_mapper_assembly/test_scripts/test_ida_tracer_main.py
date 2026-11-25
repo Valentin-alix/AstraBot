@@ -49,11 +49,12 @@ class TestIdaTracerMain:
 
     def test_run_ida_script_passes_progress_path_and_removes_temp_file(self, tmp_path: Path) -> None:
         captured_env: dict[str, str] = {}
+        captured_command: list[str] = []
         database_path = tmp_path / "GameAssembly.dll"
         database_path.write_bytes(b"dll")
 
         def fake_popen(
-            _command: list[str],
+            command: list[str],
             *,
             stdout: int,
             stderr: int,
@@ -62,6 +63,7 @@ class TestIdaTracerMain:
             env: dict[str, str],
         ) -> _FakeProcess:
             del stdout, stderr, text, encoding
+            captured_command.extend(command)
             captured_env.update(env)
             return _FakeProcess()
 
@@ -82,6 +84,7 @@ class TestIdaTracerMain:
 
         progress_path = Path(captured_env["PROTO_TRACER_PROGRESS_PATH"])
         assert captured_env["PROTO_TRACER_BASE_DIR"] == str(ida_main.NON_OBFUSCATED_DATA_DIR)
+        assert "-Opdb:off" in captured_command
         assert not progress_path.exists()
 
     def test_main_uses_custom_ida_executable_with_an_archived_build(self, tmp_path: Path) -> None:

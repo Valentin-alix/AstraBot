@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from functools import cached_property, partial
 from operator import attrgetter
 
+import numpy as np
 from cachetools import LRUCache, cachedmethod
 
 from DBDofusUnity.proto_mapper_assembly.helpers.proto_helpers import (
@@ -16,6 +17,7 @@ from DBDofusUnity.proto_mapper_assembly.scoring.enum_similarity import (
     enum_signature_similarity,
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.primitives import (
+    average_assignment_similarity,
     counter_profile_overlap_similarity,
     get_average_best_similarity_sequences,
     ratio_similarity,
@@ -254,13 +256,29 @@ def _assembly_similarity_data(
     left: MessageAccessSignature,
     right: MessageAccessSignature,
 ) -> AssemblySimilarityData:
-    function_score = get_average_best_similarity_sequences(
-        left.function_similarity_keys, right.function_similarity_keys, function_similarity_from_keys
-    )
+    function_score = _function_similarity(left, right)
     field_score = get_average_best_similarity_sequences(
         left=left.field_signatures, right=right.field_signatures, scorer=field_signature_similarity
     )
     return AssemblySimilarityData(function_similarity=function_score, fields_similarity=field_score)
+
+
+def _function_similarity(left: MessageAccessSignature, right: MessageAccessSignature) -> float:
+    left_keys = left.function_similarity_keys
+    right_keys = right.function_similarity_keys
+    if len(left_keys) <= 1 or len(right_keys) <= 1:
+        return get_average_best_similarity_sequences(left_keys, right_keys, function_similarity_from_keys)
+
+    cost = np.zeros((len(left_keys), len(right_keys)))
+    right_positions = right.function_positions_by_role
+    for role, rows in left.function_positions_by_role.items():
+        columns = right_positions.get(role)
+        if columns is None:
+            continue
+        for row in rows:
+            for column in columns:
+                cost[row, column] = function_similarity_from_keys(left_keys[row], right_keys[column])
+    return average_assignment_similarity(cost)
 
 
 def _harden_structure_score(

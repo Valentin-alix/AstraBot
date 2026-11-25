@@ -30,7 +30,7 @@ def write_pinned_pairs(path: Path, pinned_pairs: PinnedPairsConfig) -> None:
 
 
 def load_pinned_pairs(path: Path) -> PinnedPairsConfig:
-    pinned_pairs = PinnedPairsConfig.model_validate_json(path.read_text(encoding="utf-8"))
+    pinned_pairs = PinnedPairsConfig.model_validate_json(path.read_bytes())
     return PinnedPairsConfig(
         pairs=[
             pair.model_copy(

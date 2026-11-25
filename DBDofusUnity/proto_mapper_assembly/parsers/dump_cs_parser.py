@@ -33,12 +33,12 @@ def parse_messages(dump_cs_path: str) -> list[DumpCSMessage]:
 def load_tracking_types(base_dir: Path) -> list[DumpCSMessage]:
     tracking_types: list[DumpCSMessage] = []
     cs_dir = base_dir / "cs"
-    for current_path in _iter_tracking_cs_paths(cs_dir):
+    for current_path in iter_tracking_cs_paths(cs_dir):
         tracking_types.extend(parse_types(str(current_path)))
     return tracking_types
 
 
-def _iter_tracking_cs_paths(cs_dir: Path) -> Iterable[Path]:
+def iter_tracking_cs_paths(cs_dir: Path) -> Iterable[Path]:
     for current_path in sorted(cs_dir.glob("*.cs")):
         if current_path.name == "Core.cs" or current_path.name.startswith("Ankama.Dofus.Protocol."):
             yield current_path

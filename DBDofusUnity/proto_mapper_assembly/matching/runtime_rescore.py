@@ -43,6 +43,9 @@ def build_runtime_rescored_scores(
     rescored_matrix = np.array(scores_matrix, copy=True)
     runtime_confidence_by_pair: dict[MatchPairKey, float] = {}
     rejected_candidate_indexes: list[RuntimeCandidateIndexes] = []
+    if not run_config.runtime_data_store.content_by_name.root:
+        return RuntimeRescoredScores(rescored_matrix, runtime_confidence_by_pair, rejected_candidate_indexes)
+
     field_mapping_context = FieldMappingContext(
         score_by_pair=build_lazy_score_by_pair_lookup_from_matrix(
             workspace=workspace, scores_matrix=scores_matrix

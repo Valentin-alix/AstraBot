@@ -17,7 +17,7 @@ class TestObfGameSnapshot:
         layout = snapshot_layout(tmp_path)
         real_assembly, _ = write_real_game_files(layout.real_game_dir, mtime_ns=300)
         old_snapshot = write_snapshot(layout.snapshots_root / "22_04_2026", assembly_mtime_ns=200)
-        current_snapshot = write_snapshot(layout.snapshots_root / "05_05_2026", assembly_mtime_ns=300)
+        current_snapshot = write_snapshot(layout.snapshots_root / "2026-05-05", assembly_mtime_ns=300)
 
         snapshot = resolve_obf_game_snapshot(
             real_game_dir=layout.real_game_dir,
@@ -34,7 +34,7 @@ class TestObfGameSnapshot:
     def test_refreshes_today_snapshot_and_removes_stale_i64(self, tmp_path: Path) -> None:
         layout = snapshot_layout(tmp_path)
         real_assembly, real_metadata = write_real_game_files(layout.real_game_dir, mtime_ns=500)
-        today_snapshot = write_snapshot(layout.snapshots_root / "05_05_2026", assembly_mtime_ns=400)
+        today_snapshot = write_snapshot(layout.snapshots_root / "2026-05-05", assembly_mtime_ns=400)
         stale_i64 = today_snapshot / "GameAssembly.dll.i64"
         stale_i64.write_bytes(b"stale")
 
@@ -55,7 +55,7 @@ class TestObfGameSnapshot:
         layout = snapshot_layout(tmp_path)
         write_real_game_files(layout.real_game_dir, mtime_ns=300)
         write_snapshot(layout.non_obf_game_dir, assembly_mtime_ns=900)
-        obf_snapshot = write_snapshot(layout.snapshots_root / "05_05_2026", assembly_mtime_ns=300)
+        obf_snapshot = write_snapshot(layout.snapshots_root / "2026-05-05", assembly_mtime_ns=300)
 
         snapshot = resolve_obf_game_snapshot(
             real_game_dir=layout.real_game_dir,

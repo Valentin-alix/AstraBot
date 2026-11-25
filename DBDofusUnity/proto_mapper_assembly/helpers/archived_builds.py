@@ -10,11 +10,6 @@ IL2CPP_METADATA_NAME = "global-metadata.dat"
 
 PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH: Path = Path("cs") / "Ankama.Dofus.Protocol.Game.cs"
 PROTO_ACCESSES_RELATIVE_PATH: Path = Path("proto_accesses.json")
-GAME_MAPPINGS_RELATIVE_PATH: Path = Path("game_mappings.json")
-
-NON_OBF_SUBDIR: Path = Path("non_obf")
-NON_OBF_PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH: Path = NON_OBF_SUBDIR / PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH
-NON_OBF_PROTO_ACCESSES_RELATIVE_PATH: Path = NON_OBF_SUBDIR / PROTO_ACCESSES_RELATIVE_PATH
 
 
 def iter_archived_build_dirs(

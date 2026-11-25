@@ -24,6 +24,7 @@ def build_game_mappings_document(
     non_obf_messages_by_cls: dict[str, DumpCSMessage],
 ) -> GameMappingsDocument:
     generated_messages_by_cls = build_dump_cs_messages_from_pb2(PROTOS_ROOT / "non_obf")
+    generated_namespaces = _build_generated_namespaces(generated_messages_by_cls)
     entries: dict[str, GameMappingEntry] = {}
     for match in tqdm(matches, "writing game mappings doc"):
         obf_message = obf_messages_by_cls.get(match.obf_signature.message_cls)
@@ -38,6 +39,7 @@ def build_game_mappings_document(
         exported_non_obf_message = resolve_generated_message_alias(
             message=non_obf_message,
             generated_messages_by_cls=generated_messages_by_cls,
+            generated_namespaces=generated_namespaces,
         )
         output_key = build_filtered_message_namespace(
             is_obf=False,
@@ -78,19 +80,14 @@ def resolve_generated_message_alias(
     *,
     message: DumpCSMessage,
     generated_messages_by_cls: dict[str, DumpCSMessage],
+    generated_namespaces: set[str] | None = None,
 ) -> DumpCSMessage:
     raw_namespace = build_filtered_message_namespace(
         is_obf=False, message=message, messages_by_cls=generated_messages_by_cls
     )
-    generated_messages_by_namespace = {
-        build_filtered_message_namespace(
-            is_obf=False,
-            message=generated_message,
-            messages_by_cls=generated_messages_by_cls,
-        ): generated_message
-        for generated_message in generated_messages_by_cls.values()
-    }
-    if raw_namespace in generated_messages_by_namespace:
+    if generated_namespaces is None:
+        generated_namespaces = _build_generated_namespaces(generated_messages_by_cls)
+    if raw_namespace in generated_namespaces:
         return message
 
     source_fields = {field.clean_field_name for field in message.fields}
@@ -111,6 +108,13 @@ def resolve_generated_message_alias(
         and (generated_message.name == message.name or generated_message.name.startswith(message.name))
     ]
     return renamed_parent_candidates[0] if len(renamed_parent_candidates) == 1 else message
+
+
+def _build_generated_namespaces(messages_by_cls: dict[str, DumpCSMessage]) -> set[str]:
+    return {
+        build_filtered_message_namespace(is_obf=False, message=message, messages_by_cls=messages_by_cls)
+        for message in messages_by_cls.values()
+    }
 
 
 def build_full_message_namespace(message: DumpCSMessage) -> str:
