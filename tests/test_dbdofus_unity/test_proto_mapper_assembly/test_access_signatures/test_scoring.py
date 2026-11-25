@@ -21,6 +21,7 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCS
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldCategoryEnum
 from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import (
     compute_structure_score,
+    shallow_structure_score,
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import (
     field_signature_similarity,
@@ -61,6 +62,33 @@ class TestFieldEvidenceSimilarity:
 
 
 class TestAssemblyAccessSimilarity:
+    def test_shallow_structure_preserves_numeric_and_oneof_distinctions(self) -> None:
+        field = scalar_field("value_", 0x10)
+
+        def signature(name: str, *fields: DumpCSMessageField) -> MessageAccessSignature:
+            return message_signature(
+                name,
+                declared_field_signatures=[],
+                dump_cs_msg=DumpCSMessage(file_descriptor="FD", name=name, fields=list(fields)),
+                live_field_keys=frozenset(part.field_key for part in fields),
+            )
+
+        left = signature("Left", field)
+        cases = (
+            (signature("Same", field), 1.0),
+            (signature("Long", field.model_copy(update={"normalized_type": "long"})), 0.5),
+            (signature("Oneof", field.model_copy(update={"oneof_group_name": "group"})), 0.0),
+            (signature("Empty"), 0.0),
+        )
+        context = builder_structure_similarity_context(
+            left_signatures=[left], right_signatures=[candidate for candidate, _ in cases]
+        )
+        for right, expected in cases:
+            assert shallow_structure_score(left, right) == expected
+            assert shallow_structure_score(left, right, context=context) == expected
+        empty = cases[-1][0]
+        assert shallow_structure_score(empty, empty, context=context) == 1.0
+
     def test_field_signature_similarity_ignores_duplicate_alias_accesses(self) -> None:
         left = field_access_signature(
             field_offset=24,

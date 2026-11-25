@@ -12,6 +12,7 @@ TYPE_PATTERN = re.compile(
 ENUM_PATTERN = re.compile(r"public\s+enum\s+(\w+)\b", re.MULTILINE)
 _ENUM_MEMBER_VALUE_PATTERN = re.compile(r"(\w+)\s*=\s*(-?\d+)")
 _NESTED_TYPE_KW_PATTERN = re.compile(r"\b(?:class|struct|enum)\s+\w+")
+_BRACE_PATTERN = re.compile(r"[{}]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,13 +220,12 @@ def _strip_nested_type_bodies(code: str) -> str:
 
 def _find_matching_brace(opening_brace_pos: int, code: str) -> int | None:
     depth = 1
-    cursor = opening_brace_pos + 1
-    while cursor < len(code) and depth > 0:
-        if code[cursor] == "{":
+    for match in _BRACE_PATTERN.finditer(code, opening_brace_pos + 1):
+        position = match.start()
+        if code[position] == "{":
             depth += 1
-        elif code[cursor] == "}":
+        else:
             depth -= 1
-        cursor += 1
-    if depth != 0:
-        return None
-    return cursor - 1
+            if depth == 0:
+                return position
+    return None

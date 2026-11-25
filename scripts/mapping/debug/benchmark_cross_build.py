@@ -75,7 +75,7 @@ def main() -> None:
     parser = _build_argument_parser()
     arguments = parser.parse_args()
     if arguments.jobs < 1:
-        parser.error('--jobs must be positive')
+        parser.error("--jobs must be positive")
     build_dirs = _resolve_build_dirs(snapshots_root=arguments.snapshots_root, requested=arguments.builds)
     if not build_dirs:
         raise SystemExit("no archived build with an obf dump, an obf trace and pinned_pairs.json")
@@ -115,7 +115,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         default=None,
         help="Write outcomes, field identities and duration as JSON.",
     )
-    parser.add_argument("--jobs", type=int, default=2, help="Number of replay processes (default: 2).")
+    parser.add_argument("--jobs", type=int, default=4, help="Number of replay processes (default: 2).")
     return parser
 
 

@@ -1,4 +1,6 @@
 from collections import Counter
+from collections.abc import Callable
+from functools import lru_cache, partial
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     AccessAtomKey,
@@ -7,7 +9,7 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     FunctionSimilarityKey,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.counter_profile import CounterProfile
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessageField
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DeclaredFieldShape, DumpCSMessageField
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldTypeShape
 from DBDofusUnity.proto_mapper_assembly.interfaces.function_access_signature import ForeignAccessSummaryKey
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_comparison import FieldComparisonKey
@@ -18,9 +20,27 @@ from DBDofusUnity.proto_mapper_assembly.scoring.primitives import (
 from utils.cache import cache
 
 
+type OpcodeHistogram = tuple[tuple[str, int], ...]
+type FunctionSimilarityScorer = Callable[[FunctionSimilarityKey, FunctionSimilarityKey], float]
+
+
+def _opcode_histogram_overlap(left: OpcodeHistogram, right: OpcodeHistogram) -> float:
+    return counter_profile_overlap_similarity(
+        left=_opcode_histogram_profile(left),
+        right=_opcode_histogram_profile(right),
+    )
+
+
+def build_function_similarity_scorer() -> FunctionSimilarityScorer:
+    opcode_overlap = lru_cache(maxsize=32_768)(_opcode_histogram_overlap)
+    return partial(function_similarity_from_keys, opcode_overlap=opcode_overlap)
+
+
 def function_similarity_from_keys(
     left: FunctionSimilarityKey,
     right: FunctionSimilarityKey,
+    *,
+    opcode_overlap: Callable[[OpcodeHistogram, OpcodeHistogram], float] = _opcode_histogram_overlap,
 ) -> float:
     """Self-access dominates; weak secondary signals only break ties and support acceptance."""
     if left.return_role != right.return_role:
@@ -33,10 +53,7 @@ def function_similarity_from_keys(
 
     score += 0.85 * access_atom_sequence_similarity(left.self_accesses, right.self_accesses)
 
-    score += 0.05 * counter_profile_overlap_similarity(
-        left=_opcode_histogram_profile(left.opcode_histogram),
-        right=_opcode_histogram_profile(right.opcode_histogram),
-    )
+    score += 0.05 * opcode_overlap(left.opcode_histogram, right.opcode_histogram)
 
     score += 0.05 * counter_profile_overlap_similarity(
         left=_foreign_access_profile(left.foreign_access_summary),
@@ -165,14 +182,12 @@ _NUMERIC_KIND_MISMATCH_SIMILARITY = 0.5
 
 
 def declared_field_similarity(left: DumpCSMessageField, right: DumpCSMessageField) -> float:
-    if left.field_type_shape != right.field_type_shape:
-        return 0
-    if (left.oneof_group_name is not None) != (right.oneof_group_name is not None):
-        return 0
-    return _numeric_kind_similarity(left, right)
+    return declared_field_shape_similarity(left.declared_field_shape, right.declared_field_shape)
 
 
-def _numeric_kind_similarity(left: DumpCSMessageField, right: DumpCSMessageField) -> float:
+def declared_field_shape_similarity(left: DeclaredFieldShape, right: DeclaredFieldShape) -> float:
+    if left.field_type != right.field_type or left.in_oneof != right.in_oneof:
+        return 0.0
     left_kind, right_kind = left.numeric_kind, right.numeric_kind
     if left_kind is None or right_kind is None or left_kind == right_kind:
         return 1.0

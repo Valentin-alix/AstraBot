@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from functools import cached_property, partial
+from functools import cached_property, lru_cache, partial
 from operator import attrgetter
 
 import numpy as np
@@ -10,7 +11,7 @@ from DBDofusUnity.proto_mapper_assembly.helpers.proto_helpers import (
     resolve_child_message_cls,
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import AccessTraceDocument, MessageAccessSignature
-from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField
+from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DeclaredFieldShape, DumpCSMessage, DumpCSMessageField
 from DBDofusUnity.proto_mapper_assembly.interfaces.enum_mapping import EnumSignatureEntry
 from DBDofusUnity.proto_mapper_assembly.scoring.enum_similarity import (
     EnumSimilarityContext,
@@ -23,6 +24,8 @@ from DBDofusUnity.proto_mapper_assembly.scoring.primitives import (
     ratio_similarity,
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import (
+    FunctionSimilarityScorer,
+    declared_field_shape_similarity,
     declared_field_similarity,
     field_signature_similarity,
     function_similarity_from_keys,
@@ -54,6 +57,10 @@ class StructureSimilarityContext:
     _enum_similarity_cache: LRUCache[tuple[str, str], float | None] = field(
         default_factory=lambda: LRUCache(maxsize=8192)
     )
+
+    @cached_property
+    def compare_shallow_shapes(self) -> Callable[[tuple[DeclaredFieldShape, ...], tuple[DeclaredFieldShape, ...]], float]:
+        return lru_cache(maxsize=32_768)(_compare_shallow_shapes)
 
     @cached_property
     def left_messages_by_cls(self) -> dict[str, DumpCSMessage]:
@@ -146,8 +153,14 @@ def build_structure_hardening(
     )
 
 
-def shallow_structure_score(left: MessageAccessSignature, right: MessageAccessSignature) -> float:
-    return _shallow_structure_score(left, right)
+def shallow_structure_score(
+    left: MessageAccessSignature,
+    right: MessageAccessSignature,
+    *,
+    context: StructureSimilarityContext | None = None,
+) -> float:
+    compare = context.compare_shallow_shapes if context is not None else _compare_shallow_shapes
+    return compare(left.declared_similarity_shapes, right.declared_similarity_shapes)
 
 
 def deep_structure_score(
@@ -176,10 +189,11 @@ def compute_message_similarity(
     right: MessageAccessSignature,
     *,
     structure_score: float,
+    function_scorer: FunctionSimilarityScorer = function_similarity_from_keys,
 ) -> MessageSimilarityScoreData:
     return MessageSimilarityScoreData(
         structure_similarity=structure_score,
-        assembly_sim_data=_assembly_similarity_data(left, right),
+        assembly_sim_data=_assembly_similarity_data(left, right, function_scorer),
         assembly_weight=coverage_assembly_weight(left, right),
     )
 
@@ -206,16 +220,14 @@ def _raw_structure_score(
     context: StructureSimilarityContext | None,
 ) -> float:
     if context is None:
-        return _shallow_structure_score(left, right)
+        return shallow_structure_score(left, right)
     return _structure_score_with_context(left, right, context=context, depth=0, visited_pairs=frozenset())
 
 
-def _shallow_structure_score(left: MessageAccessSignature, right: MessageAccessSignature) -> float:
-    return get_average_best_similarity_sequences(
-        left.declared_similarity_fields,
-        right.declared_similarity_fields,
-        declared_field_similarity,
-    )
+def _compare_shallow_shapes(
+    left: tuple[DeclaredFieldShape, ...], right: tuple[DeclaredFieldShape, ...]
+) -> float:
+    return get_average_best_similarity_sequences(left, right, declared_field_shape_similarity)
 
 
 def _structure_score_with_context(
@@ -228,7 +240,7 @@ def _structure_score_with_context(
 ) -> float:
     pair_key = (left.message_cls, right.message_cls)
     if depth > context.max_child_depth or pair_key in visited_pairs:
-        return _shallow_structure_score(left, right)
+        return shallow_structure_score(left, right, context=context)
 
     remaining_depth = context.max_child_depth - depth
     cache_key = (left.message_cls, right.message_cls, remaining_depth)
@@ -255,19 +267,22 @@ def _structure_score_with_context(
 def _assembly_similarity_data(
     left: MessageAccessSignature,
     right: MessageAccessSignature,
+    function_scorer: FunctionSimilarityScorer,
 ) -> AssemblySimilarityData:
-    function_score = _function_similarity(left, right)
+    function_score = _function_similarity(left, right, function_scorer)
     field_score = get_average_best_similarity_sequences(
         left=left.field_signatures, right=right.field_signatures, scorer=field_signature_similarity
     )
     return AssemblySimilarityData(function_similarity=function_score, fields_similarity=field_score)
 
 
-def _function_similarity(left: MessageAccessSignature, right: MessageAccessSignature) -> float:
+def _function_similarity(
+    left: MessageAccessSignature, right: MessageAccessSignature, function_scorer: FunctionSimilarityScorer
+) -> float:
     left_keys = left.function_similarity_keys
     right_keys = right.function_similarity_keys
     if len(left_keys) <= 1 or len(right_keys) <= 1:
-        return get_average_best_similarity_sequences(left_keys, right_keys, function_similarity_from_keys)
+        return get_average_best_similarity_sequences(left_keys, right_keys, function_scorer)
 
     cost = np.zeros((len(left_keys), len(right_keys)))
     right_positions = right.function_positions_by_role
@@ -277,7 +292,7 @@ def _function_similarity(left: MessageAccessSignature, right: MessageAccessSigna
             continue
         for row in rows:
             for column in columns:
-                cost[row, column] = function_similarity_from_keys(left_keys[row], right_keys[column])
+                cost[row, column] = function_scorer(left_keys[row], right_keys[column])
     return average_assignment_similarity(cost)
 
 

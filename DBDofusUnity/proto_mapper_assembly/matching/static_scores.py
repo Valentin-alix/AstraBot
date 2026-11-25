@@ -23,6 +23,8 @@ from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import (
     shallow_structure_score,
 )
 
+from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import build_function_similarity_scorer
+
 _OBVIOUS_INCOMPATIBILITY_MIN_FIELD_COUNT = 4
 _MIN_STRUCTURE_SIMILARITY = 0.5
 
@@ -79,6 +81,7 @@ def build_static_score_data(
             )
         )
 
+    function_scorer = build_function_similarity_scorer()
     non_obf_candidates = (*non_obf_candidates_by_root[True], *non_obf_candidates_by_root[False])
     for obf_index, obf_signature in enumerate(tqdm(obf_signatures, "build static score matrix")):
         obf_gate_inputs = _build_obf_gate_inputs(obf_signature, pinned_pairs_config, runtime_data_store)
@@ -102,7 +105,9 @@ def build_static_score_data(
             ):
                 hardening = replace(hardening, live_alignment_weight=0.0, declared_shape_weight=1.0)
 
-            structure_similarity = hardening.apply(shallow_structure_score(obf_signature, non_obf_signature))
+            structure_similarity = hardening.apply(
+                shallow_structure_score(obf_signature, non_obf_signature, context=structure_context)
+            )
             if structure_similarity < _MIN_STRUCTURE_SIMILARITY and not is_pinned_obf:
                 structure_scores_matrix[non_obf_index, obf_index] = structure_similarity
                 continue
@@ -115,7 +120,10 @@ def build_static_score_data(
                 continue
             structure_scores_matrix[non_obf_index, obf_index] = structure_similarity
             pair_score = compute_message_similarity(
-                obf_signature, non_obf_signature, structure_score=structure_similarity
+                obf_signature,
+                non_obf_signature,
+                structure_score=structure_similarity,
+                function_scorer=function_scorer,
             )
             assembly_scores_matrix[non_obf_index, obf_index] = (
                 pair_score.assembly_sim_data.assembly_similarity

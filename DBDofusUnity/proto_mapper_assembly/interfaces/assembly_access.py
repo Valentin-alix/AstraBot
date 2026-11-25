@@ -6,6 +6,7 @@ from pydantic import BaseModel, RootModel, model_validator
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.counter_profile import CounterProfile
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
+    DeclaredFieldShape,
     DumpCSMessage,
     DumpCSMessageField,
     FieldKey,
@@ -325,6 +326,10 @@ class MessageAccessSignature(BaseModel):
     @cached_property
     def declared_similarity_fields(self) -> tuple[DumpCSMessageField, ...]:
         return tuple(field for field in self.declared_proto_fields if field.field_key in self.live_field_keys)
+
+    @cached_property
+    def declared_similarity_shapes(self) -> tuple[DeclaredFieldShape, ...]:
+        return tuple(field.declared_field_shape for field in self.declared_similarity_fields)
 
     @cached_property
     def declared_field_count(self) -> int:

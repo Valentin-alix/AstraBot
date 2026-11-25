@@ -21,6 +21,12 @@ class FieldKey(NamedTuple):
     field_name: str
 
 
+class DeclaredFieldShape(NamedTuple):
+    field_type: FieldTypeShape
+    in_oneof: bool
+    numeric_kind: NumericKind | None
+
+
 class EnumFieldTypes(NamedTuple):
     key: str | None
     value: str | None
@@ -132,6 +138,10 @@ class DumpCSMessageField(BaseModel):
         if self.category != FieldCategoryEnum.NUMBER:
             return None
         return resolve_numeric_kind(self.normalized_type)
+
+    @cached_property
+    def declared_field_shape(self) -> DeclaredFieldShape:
+        return DeclaredFieldShape(self.field_type_shape, self.oneof_group_name is not None, self.numeric_kind)
 
     @cached_property
     def declared_shape_token(self) -> str:

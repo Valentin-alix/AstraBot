@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
+from DBDofusUnity.proto_mapper_assembly.parsers._dump_cs_structure import get_stripped_direct_body
 from DBDofusUnity.proto_mapper_assembly.parsers.dump_cs_parser import parse_types
 
 CODE = (
@@ -26,6 +27,11 @@ CODE = (
 
 
 class TestParseTypes:
+    def test_direct_body_preserves_fields_around_nested_types(self) -> None:
+        code = "class Parent { int first; class Nested { void M() {} } int last; } class Next {}"
+        assert get_stripped_direct_body(0, code) == " int first; class Nested {} int last; "
+        assert get_stripped_direct_body(0, "class Parent { class Nested {}") == ""
+
     def test_private_state_machine_keeps_message_field(self, dump_cs: Callable[[str], Path]) -> None:
         path = str(dump_cs(CODE))
         parsed_types = parse_types(path)
