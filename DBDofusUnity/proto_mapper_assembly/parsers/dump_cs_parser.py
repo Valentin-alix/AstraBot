@@ -23,6 +23,11 @@ from DBDofusUnity.proto_mapper_assembly.parsers._dump_cs_structure import (
 )
 
 _BASE_CLASS_NAME_RE = re.compile(r"^\s*([\w.]+)")
+_TRACKING_CS_NAMES = (
+    "Ankama.Dofus.Protocol.Connection.cs",
+    "Ankama.Dofus.Protocol.Game.cs",
+    "Core.cs",
+)
 
 
 def parse_messages(dump_cs_path: str) -> list[DumpCSMessage]:
@@ -39,9 +44,10 @@ def load_tracking_types(base_dir: Path) -> list[DumpCSMessage]:
 
 
 def iter_tracking_cs_paths(cs_dir: Path) -> Iterable[Path]:
-    for current_path in sorted(cs_dir.glob("*.cs")):
-        if current_path.name == "Core.cs" or current_path.name.startswith("Ankama.Dofus.Protocol."):
-            yield current_path
+    for name in _TRACKING_CS_NAMES:
+        path = cs_dir / name
+        if path.is_file():
+            yield path
 
 
 def parse_types(dump_cs_path: str) -> list[DumpCSMessage]:

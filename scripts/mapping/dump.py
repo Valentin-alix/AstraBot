@@ -96,13 +96,10 @@ def update_protos(*, use_obf: bool, obf_dir: Path | None = None, force: bool = F
     if force or is_game_assembly_changed_since_last_run(target):
         if use_obf and obf_dir is None:
             _archive_previous_obf_dump(target)
-        if obf_dir is None:
-            _export_dump(target, target.output_folder)
-        else:
-            with TemporaryDirectory(prefix="astrabot-dump-") as temporary_dir:
-                staging = Path(temporary_dir)
-                _export_dump(target, staging)
-                _copy_dump_inputs(staging, target.output_folder)
+        with TemporaryDirectory(prefix="astrabot-dump-") as temporary_dir:
+            staging = Path(temporary_dir)
+            _export_dump(target, staging)
+            _copy_dump_inputs(staging, target.output_folder)
 
         if use_obf:
             if not force and not does_dump_cs_changed_since_last_run(target):

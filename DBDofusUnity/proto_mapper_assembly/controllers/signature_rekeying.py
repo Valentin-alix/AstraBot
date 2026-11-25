@@ -7,8 +7,6 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
 )
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessageField, FieldKey
 
-# Rebuild models: model_copy retains stale cached similarity keys.
-
 
 def rekey_access_atom(
     atom: AccessAtomSignature,

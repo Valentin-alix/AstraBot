@@ -169,23 +169,43 @@ class TestDumpScript:
         run_pipeline_mock.assert_not_called()
         assert "aB" in pinned_pairs_path.read_text(encoding="utf-8")
 
-    def test_update_protos_clears_mapping_inputs_and_runs_the_pipeline_on_the_live_workspace(
-        self, tmp_path: Path
+    @pytest.mark.parametrize("use_obf", [True, False])
+    def test_update_protos_retains_only_tracer_inputs_on_the_live_workspace(
+        self, tmp_path: Path, use_obf: bool
     ) -> None:
         game_assembly = tmp_path / "GameAssembly.dll"
         game_assembly.write_bytes(b"dll-bytes")
+        output_folder = tmp_path / "dump"
+        proto_output = tmp_path / "protos"
+        kept_names = {"Ankama.Dofus.Protocol.Game.cs", "Ankama.Dofus.Protocol.Connection.cs", "Core.cs"}
+        inspector_outputs: list[Path] = []
 
-        def fake_run_protodec(_assembly_path: Path, proto_output: Path) -> None:
-            proto_output.parent.mkdir(parents=True, exist_ok=True)
-            proto_output.write_text('syntax = "proto3";', encoding="utf-8")
+        def fake_run_il2cpp_inspector(_dll: Path, _metadata: Path, staging: Path) -> None:
+            inspector_outputs.append(staging)
+            (staging / "cs").mkdir()
+            for name in kept_names | {"Unity.cs", "Ankama.Dofus.Protocol.Extra.cs"}:
+                (staging / "cs" / name).write_text("class Example {}", encoding="utf-8")
+            (staging / "il2cpp.json").write_text("{}", encoding="utf-8")
+            (staging / "il2cpp.py").touch()
+            (staging / "dll").mkdir()
+            (staging / "dll" / "Ankama.Dofus.Protocol.Game.dll").touch()
+            (staging / "dll" / "Google.Protobuf.dll").touch()
+
+        def fake_run_protodec(assembly_path: Path, _proto_output: Path) -> None:
+            assert assembly_path.is_file()
+            assert assembly_path.with_name("Google.Protobuf.dll").is_file()
 
         with (
-            patch.object(dump_script, "OBFUSCATED_DATA_DIR", tmp_path / "obf"),
+            patch.object(dump_script, "OBFUSCATED_DATA_DIR", output_folder),
+            patch.object(dump_script, "NON_OBFUSCATED_DATA_DIR", output_folder),
             patch.object(dump_script, "OBF_GAME_ASSEMBLY_DLL", game_assembly),
+            patch.object(dump_script, "NON_OBF_GAME_ASSEMBLY_DLL", game_assembly),
             patch.object(dump_script, "OBF_IL2CPP_METADATA_FILE", tmp_path / "global-metadata.dat"),
-            patch.object(dump_script, "OBF_PROTO_OUTPUT", tmp_path / "protos"),
+            patch.object(dump_script, "NON_OBF_IL2CPP_METADATA_FILE", tmp_path / "global-metadata.dat"),
+            patch.object(dump_script, "OBF_PROTO_OUTPUT", proto_output),
+            patch.object(dump_script, "NON_OBF_PROTO_OUTPUT", proto_output),
             patch.object(dump_script, "OBF_GAME_SNAPSHOTS_DIR", tmp_path / "snapshots"),
-            patch.object(dump_script, "run_il2cpp_inspector", side_effect=self._fake_il2cpp_inspector),
+            patch.object(dump_script, "run_il2cpp_inspector", side_effect=fake_run_il2cpp_inspector),
             patch.object(dump_script, "run_protodec", side_effect=fake_run_protodec),
             patch.object(dump_script, "gen_python_from_protoc"),
             patch.object(dump_script, "run_ida_script"),
@@ -194,10 +214,21 @@ class TestDumpScript:
             patch.object(dump_script, "RUNTIME_DATA_FILE", tmp_path / "instancied_msg_infos.json"),
             patch.object(dump_script, "_clear_mapping_inputs_before_pipeline") as clear_mock,
         ):
-            dump_script.update_protos(use_obf=True)
+            dump_script.update_protos(use_obf=use_obf)
 
-        clear_mock.assert_called_once_with()
-        run_pipeline_mock.assert_called_once_with(do_load_pinned_pair=True)
+        [staging] = inspector_outputs
+        assert staging != output_folder
+        assert not staging.exists()
+        assert {path.name for path in (output_folder / "cs").iterdir()} == kept_names
+        assert (output_folder / "il2cpp.json").is_file()
+        assert not (output_folder / "il2cpp.py").exists()
+        assert not (output_folder / "dll").exists()
+        if use_obf:
+            clear_mock.assert_called_once_with()
+            run_pipeline_mock.assert_called_once_with(do_load_pinned_pair=True)
+        else:
+            clear_mock.assert_not_called()
+            run_pipeline_mock.assert_not_called()
 
     def test_update_protos_skips_redumping_when_game_assembly_is_unchanged(self, tmp_path: Path) -> None:
         obf_dir = tmp_path / "20_05_2026"
