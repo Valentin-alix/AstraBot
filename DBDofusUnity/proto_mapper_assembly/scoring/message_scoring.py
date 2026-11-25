@@ -24,7 +24,6 @@ from DBDofusUnity.proto_mapper_assembly.scoring.primitives import (
     ratio_similarity,
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import (
-    FunctionSimilarityScorer,
     declared_field_shape_similarity,
     declared_field_similarity,
     field_signature_similarity,
@@ -163,15 +162,6 @@ def shallow_structure_score(
     return compare(left.declared_similarity_shapes, right.declared_similarity_shapes)
 
 
-def deep_structure_score(
-    left: MessageAccessSignature,
-    right: MessageAccessSignature,
-    *,
-    context: StructureSimilarityContext,
-) -> float:
-    return _structure_score_with_context(left, right, context=context, depth=0, visited_pairs=frozenset())
-
-
 def compute_structure_score(
     left: MessageAccessSignature,
     right: MessageAccessSignature,
@@ -189,11 +179,10 @@ def compute_message_similarity(
     right: MessageAccessSignature,
     *,
     structure_score: float,
-    function_scorer: FunctionSimilarityScorer = function_similarity_from_keys,
 ) -> MessageSimilarityScoreData:
     return MessageSimilarityScoreData(
         structure_similarity=structure_score,
-        assembly_sim_data=_assembly_similarity_data(left, right, function_scorer),
+        assembly_sim_data=_assembly_similarity_data(left, right),
         assembly_weight=coverage_assembly_weight(left, right),
     )
 
@@ -267,9 +256,8 @@ def _structure_score_with_context(
 def _assembly_similarity_data(
     left: MessageAccessSignature,
     right: MessageAccessSignature,
-    function_scorer: FunctionSimilarityScorer,
 ) -> AssemblySimilarityData:
-    function_score = _function_similarity(left, right, function_scorer)
+    function_score = _function_similarity(left, right)
     field_score = get_average_best_similarity_sequences(
         left=left.field_signatures, right=right.field_signatures, scorer=field_signature_similarity
     )
@@ -277,12 +265,12 @@ def _assembly_similarity_data(
 
 
 def _function_similarity(
-    left: MessageAccessSignature, right: MessageAccessSignature, function_scorer: FunctionSimilarityScorer
+    left: MessageAccessSignature, right: MessageAccessSignature
 ) -> float:
     left_keys = left.function_similarity_keys
     right_keys = right.function_similarity_keys
     if len(left_keys) <= 1 or len(right_keys) <= 1:
-        return get_average_best_similarity_sequences(left_keys, right_keys, function_scorer)
+        return get_average_best_similarity_sequences(left_keys, right_keys, function_similarity_from_keys)
 
     cost = np.zeros((len(left_keys), len(right_keys)))
     right_positions = right.function_positions_by_role
@@ -292,7 +280,7 @@ def _function_similarity(
             continue
         for row in rows:
             for column in columns:
-                cost[row, column] = function_scorer(left_keys[row], right_keys[column])
+                cost[row, column] = function_similarity_from_keys(left_keys[row], right_keys[column])
     return average_assignment_similarity(cost)
 
 

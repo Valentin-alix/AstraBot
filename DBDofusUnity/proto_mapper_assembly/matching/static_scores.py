@@ -19,11 +19,8 @@ from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import (
     StructureSimilarityContext,
     build_structure_hardening,
     compute_message_similarity,
-    deep_structure_score,
     shallow_structure_score,
 )
-
-from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import build_function_similarity_scorer
 
 _OBVIOUS_INCOMPATIBILITY_MIN_FIELD_COUNT = 4
 _MIN_STRUCTURE_SIMILARITY = 0.5
@@ -52,12 +49,6 @@ class _NonObfGateInputs(NamedTuple):
     top_level_declared_field_shapes: frozenset[FieldCategoryEnum]
 
 
-class _NonObfCandidate(NamedTuple):
-    non_obf_index: int
-    signature: MessageAccessSignature
-    gate_inputs: _NonObfGateInputs
-
-
 def build_static_score_data(
     *,
     obf_signatures: Sequence[MessageAccessSignature],
@@ -71,30 +62,22 @@ def build_static_score_data(
     static_scores_matrix = np.zeros((len(non_obf_signatures), len(obf_signatures)))
     candidate_eligibility_mask = np.ones_like(static_scores_matrix, dtype=bool)
 
-    non_obf_candidates_by_root: dict[bool, list[_NonObfCandidate]] = {True: [], False: []}
-    for non_obf_index, non_obf_signature in enumerate(non_obf_signatures):
-        non_obf_candidates_by_root[non_obf_signature.dump_cs_msg.is_root_msg].append(
-            _NonObfCandidate(
-                non_obf_index=non_obf_index,
-                signature=non_obf_signature,
-                gate_inputs=_build_non_obf_gate_inputs(non_obf_signature, pinned_pairs_config),
-            )
-        )
-
-    function_scorer = build_function_similarity_scorer()
-    non_obf_candidates = (*non_obf_candidates_by_root[True], *non_obf_candidates_by_root[False])
+    non_obf_gate_inputs = [
+        _build_non_obf_gate_inputs(signature, pinned_pairs_config) for signature in non_obf_signatures
+    ]
     for obf_index, obf_signature in enumerate(tqdm(obf_signatures, "build static score matrix")):
         obf_gate_inputs = _build_obf_gate_inputs(obf_signature, pinned_pairs_config, runtime_data_store)
         is_pinned_obf = obf_gate_inputs.pinned_non_obf_cls is not None
-        for non_obf_candidate in non_obf_candidates:
-            if _are_gate_inputs_obviously_incompatible(obf_gate_inputs, non_obf_candidate.gate_inputs):
-                candidate_eligibility_mask[non_obf_candidate.non_obf_index, obf_index] = False
+        is_root = obf_signature.dump_cs_msg.is_root_msg
+        for non_obf_index, (non_obf_signature, gate_inputs) in enumerate(
+            zip(non_obf_signatures, non_obf_gate_inputs, strict=True)
+        ):
+            if _are_gate_inputs_obviously_incompatible(obf_gate_inputs, gate_inputs):
+                candidate_eligibility_mask[non_obf_index, obf_index] = False
+                continue
+            if non_obf_signature.dump_cs_msg.is_root_msg != is_root:
                 continue
 
-            non_obf_index = non_obf_candidate.non_obf_index
-            non_obf_signature = non_obf_candidate.signature
-            if non_obf_signature.dump_cs_msg.is_root_msg != obf_signature.dump_cs_msg.is_root_msg:
-                continue
             hardening = build_structure_hardening(obf_signature, non_obf_signature)
             if (
                 obf_gate_inputs.observed_instance is not None
@@ -108,22 +91,12 @@ def build_static_score_data(
             structure_similarity = hardening.apply(
                 shallow_structure_score(obf_signature, non_obf_signature, context=structure_context)
             )
+            structure_scores_matrix[non_obf_index, obf_index] = structure_similarity
             if structure_similarity < _MIN_STRUCTURE_SIMILARITY and not is_pinned_obf:
-                structure_scores_matrix[non_obf_index, obf_index] = structure_similarity
                 continue
 
-            structure_similarity = hardening.apply(
-                deep_structure_score(obf_signature, non_obf_signature, context=structure_context)
-            )
-            if structure_similarity < _MIN_STRUCTURE_SIMILARITY and not is_pinned_obf:
-                structure_scores_matrix[non_obf_index, obf_index] = structure_similarity
-                continue
-            structure_scores_matrix[non_obf_index, obf_index] = structure_similarity
             pair_score = compute_message_similarity(
-                obf_signature,
-                non_obf_signature,
-                structure_score=structure_similarity,
-                function_scorer=function_scorer,
+                obf_signature, non_obf_signature, structure_score=structure_similarity
             )
             assembly_scores_matrix[non_obf_index, obf_index] = (
                 pair_score.assembly_sim_data.assembly_similarity

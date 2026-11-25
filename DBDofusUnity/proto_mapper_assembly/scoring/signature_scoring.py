@@ -1,82 +1,24 @@
-from collections import Counter
-from collections.abc import Callable
-from functools import lru_cache, partial
-
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import (
     AccessAtomKey,
     AccessAtomSequenceKey,
     FieldAccessSignatures,
     FunctionSimilarityKey,
 )
-from DBDofusUnity.proto_mapper_assembly.interfaces.counter_profile import CounterProfile
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DeclaredFieldShape, DumpCSMessageField
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldTypeShape
-from DBDofusUnity.proto_mapper_assembly.interfaces.function_access_signature import ForeignAccessSummaryKey
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_comparison import FieldComparisonKey
-from DBDofusUnity.proto_mapper_assembly.scoring.primitives import (
-    counter_profile_overlap_similarity,
-    ratio_similarity,
-)
+from DBDofusUnity.proto_mapper_assembly.scoring.primitives import ratio_similarity
 from utils.cache import cache
 
 
-type OpcodeHistogram = tuple[tuple[str, int], ...]
-type FunctionSimilarityScorer = Callable[[FunctionSimilarityKey, FunctionSimilarityKey], float]
-
-
-def _opcode_histogram_overlap(left: OpcodeHistogram, right: OpcodeHistogram) -> float:
-    return counter_profile_overlap_similarity(
-        left=_opcode_histogram_profile(left),
-        right=_opcode_histogram_profile(right),
-    )
-
-
-def build_function_similarity_scorer() -> FunctionSimilarityScorer:
-    opcode_overlap = lru_cache(maxsize=32_768)(_opcode_histogram_overlap)
-    return partial(function_similarity_from_keys, opcode_overlap=opcode_overlap)
-
-
-def function_similarity_from_keys(
-    left: FunctionSimilarityKey,
-    right: FunctionSimilarityKey,
-    *,
-    opcode_overlap: Callable[[OpcodeHistogram, OpcodeHistogram], float] = _opcode_histogram_overlap,
-) -> float:
-    """Self-access dominates; weak secondary signals only break ties and support acceptance."""
-    if left.return_role != right.return_role:
+def function_similarity_from_keys(left: FunctionSimilarityKey, right: FunctionSimilarityKey) -> float:
+    if left.return_role != right.return_role or left.takes_message_parameter != right.takes_message_parameter:
         return 0.0
 
-    if left.takes_message_parameter != right.takes_message_parameter:
-        return 0.0
-
-    score: float = 0.0
-
-    score += 0.85 * access_atom_sequence_similarity(left.self_accesses, right.self_accesses)
-
-    score += 0.05 * opcode_overlap(left.opcode_histogram, right.opcode_histogram)
-
-    score += 0.05 * counter_profile_overlap_similarity(
-        left=_foreign_access_profile(left.foreign_access_summary),
-        right=_foreign_access_profile(right.foreign_access_summary),
+    return (
+        0.95 * access_atom_sequence_similarity(left.self_accesses, right.self_accesses)
+        + 0.05 * ratio_similarity(left.size, right.size, max_value=max(left.size, right.size))
     )
-
-    score += 0.05 * ratio_similarity(
-        left.size,
-        right.size,
-        max_value=max(left.size, right.size),
-    )
-
-    return score
-
-
-@cache
-def _opcode_histogram_profile(opcode_histogram: tuple[tuple[str, int], ...]) -> CounterProfile:
-    return CounterProfile(Counter(dict(opcode_histogram)))
-
-
-@cache
-def _foreign_access_profile(foreign_access_summary: ForeignAccessSummaryKey) -> CounterProfile:
-    return CounterProfile(Counter(foreign_access_summary))
 
 
 @cache

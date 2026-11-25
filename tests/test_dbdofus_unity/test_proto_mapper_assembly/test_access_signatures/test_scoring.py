@@ -1,3 +1,5 @@
+from collections import Counter
+
 from tests.fixtures.proto_mapper.enum_builders import enum_entry
 from tests.fixtures.proto_mapper.field_builders import (
     enum_field,
@@ -11,6 +13,7 @@ from tests.fixtures.proto_mapper.shapes import (
 )
 from tests.fixtures.proto_mapper.signatures import (
     access_atom,
+    builder_function_access_signature,
     builder_structure_similarity_context,
     field_access_signature,
 )
@@ -25,6 +28,7 @@ from DBDofusUnity.proto_mapper_assembly.scoring.message_scoring import (
 )
 from DBDofusUnity.proto_mapper_assembly.scoring.signature_scoring import (
     field_signature_similarity,
+    function_similarity_from_keys,
 )
 
 
@@ -62,6 +66,15 @@ class TestFieldEvidenceSimilarity:
 
 
 class TestAssemblyAccessSimilarity:
+    def test_function_scores_use_internal_accesses_and_size(self) -> None:
+        left = builder_function_access_signature(size=200).similarity_key
+        right = builder_function_access_signature(size=100, foreign_access_summary=["field"]).model_copy(
+            update={"opcode_histogram": Counter({"mov": 3, "call": 2})}
+        ).similarity_key
+        assert function_similarity_from_keys(left, right) == 0.95 + 0.05 * 0.5
+        traced = builder_function_access_signature(size=100, self_accesses=[access_atom()]).similarity_key
+        assert function_similarity_from_keys(left, traced) == 0.05 * 0.5
+
     def test_shallow_structure_preserves_numeric_and_oneof_distinctions(self) -> None:
         field = scalar_field("value_", 0x10)
 
