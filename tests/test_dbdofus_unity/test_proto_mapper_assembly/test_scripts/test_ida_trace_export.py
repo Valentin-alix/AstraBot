@@ -34,6 +34,7 @@ def test_shared_native_function_retains_accesses_for_each_alias() -> None:
         for cls in ("ApiKeyEvent", "ShopTokenEvent")
     ]
     trace = AccessTraceDocument(
+        operand_observations_by_message={},
         functions_by_address=build_traced_functions_from_proto_infos(
             {function.name: function for function in functions}
         )
@@ -62,6 +63,7 @@ def test_shared_aliases_do_not_duplicate_accesses_but_distinct_functions_do() ->
         for name, address in (("First", 100), ("Alias", 100), ("Second", 200))
     ]
     trace = AccessTraceDocument(
+        operand_observations_by_message={},
         functions_by_address=build_traced_functions_from_proto_infos(
             {function.name: function for function in functions}
         )

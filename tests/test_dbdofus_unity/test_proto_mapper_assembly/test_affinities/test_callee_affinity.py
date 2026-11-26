@@ -44,7 +44,9 @@ def _access_trace(callees_by_function: dict[str, tuple[list[str], list[str]]]) -
                 "max_block_depth": 1,
             },
         }
-    return AccessTraceDocument.model_validate({"functions_by_address": functions_by_address})
+    return AccessTraceDocument.model_validate(
+        {"functions_by_address": functions_by_address, "operand_observations_by_message": {}}
+    )
 
 
 def _callee_affinity(

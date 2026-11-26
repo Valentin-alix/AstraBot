@@ -1499798,5 +1499798,15 @@
         }
       ]
     }
+  },
+  "operand_observations_by_message": {
+    "kzu": {
+      "function": "0x1826109c0",
+      "fields": {
+        "gbms": null,
+        "gbmu": "split_element_high8_low24",
+        "gbmv": "read_zero_and_size_dependent_index"
+      }
+    }
   }
 }

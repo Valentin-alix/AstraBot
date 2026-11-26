@@ -209,10 +209,10 @@ def builder_structure_similarity_context(
         right_enum_signatures_by_name=right_enum_signatures_by_name or {},
         left_access_trace=left_access_trace
         if left_access_trace is not None
-        else AccessTraceDocument(functions_by_address={}),
+        else AccessTraceDocument(functions_by_address={}, operand_observations_by_message={}),
         right_access_trace=right_access_trace
         if right_access_trace is not None
-        else AccessTraceDocument(functions_by_address={}),
+        else AccessTraceDocument(functions_by_address={}, operand_observations_by_message={}),
     )
 
 

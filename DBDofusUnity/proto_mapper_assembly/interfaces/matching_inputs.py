@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import AccessTraceDocument, MessageAccessSignature
 from DBDofusUnity.proto_mapper_assembly.interfaces.capture_sequence_hints import CaptureSequenceHintsConfig
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage

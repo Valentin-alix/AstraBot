@@ -54,7 +54,9 @@ def _access_trace(registrations_by_function: dict[str, list[str]]) -> AccessTrac
             "stable_callees": [],
             "cfg_stats": None,
         }
-    return AccessTraceDocument.model_validate({"functions_by_address": functions_by_address})
+    return AccessTraceDocument.model_validate(
+        {"functions_by_address": functions_by_address, "operand_observations_by_message": {}}
+    )
 
 
 def _build_affinity() -> tuple[np.ndarray, np.ndarray]:

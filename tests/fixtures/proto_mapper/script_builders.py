@@ -314,10 +314,12 @@ def run_build_signature_overrides(
                 side_effect=[
                     AccessTraceDocument(
                         functions_by_address={},
+                        operand_observations_by_message={},
                         enum_signatures_by_name={} if obf_enum_signatures is None else obf_enum_signatures,
                     ),
                     AccessTraceDocument(
                         functions_by_address={},
+                        operand_observations_by_message={},
                         enum_signatures_by_name={}
                         if non_obf_enum_signatures is None
                         else non_obf_enum_signatures,
@@ -355,6 +357,6 @@ def single_pair_matching_inputs(
         signature_overrides_by_non_obf_cls={},
         obf_enum_signatures_by_name={},
         non_obf_enum_signatures_by_name={},
-        obf_access_trace=AccessTraceDocument(functions_by_address={}),
-        non_obf_access_trace=AccessTraceDocument(functions_by_address={}),
+        obf_access_trace=AccessTraceDocument(functions_by_address={}, operand_observations_by_message={}),
+        non_obf_access_trace=AccessTraceDocument(functions_by_address={}, operand_observations_by_message={}),
     )

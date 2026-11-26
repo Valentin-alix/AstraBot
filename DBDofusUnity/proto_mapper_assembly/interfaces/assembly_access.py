@@ -4,6 +4,8 @@ from typing import Literal, NamedTuple, TypeGuard, override
 
 from pydantic import BaseModel, RootModel, model_validator
 
+from DBDofusUnity.proto_mapper_assembly.field_mapping.operand_provenance import OperandObservation
+
 from DBDofusUnity.proto_mapper_assembly.interfaces.counter_profile import CounterProfile
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import (
     DeclaredFieldShape,
@@ -207,6 +209,7 @@ class TracedFunction(BaseModel):
 class AccessTraceDocument(BaseModel):
     functions_by_address: dict[str, TracedFunction]
     enum_signatures_by_name: dict[str, EnumSignatureEntry] = {}
+    operand_observations_by_message: dict[str, OperandObservation]
 
     def __hash__(self) -> int:
         return id(self).__hash__()

@@ -54,7 +54,9 @@ def _access_trace(message_by_alias: dict[str, str]) -> AccessTraceDocument:
             "stable_callees": [],
             "cfg_stats": None,
         }
-    return AccessTraceDocument.model_validate({"functions_by_address": functions_by_address})
+    return AccessTraceDocument.model_validate(
+        {"functions_by_address": functions_by_address, "operand_observations_by_message": {}}
+    )
 
 
 def _build_affinity(

@@ -89,6 +89,7 @@ from scripts.mapping.ida_tracer.tracing.enum_tracer import (
 from scripts.mapping.ida_tracer.tracing.handler_registration import (
     collect_handler_registration_accesses,
 )
+from scripts.mapping.ida_tracer.tracing.operand_observations import collect_operand_observations
 from scripts.mapping.ida_tracer.tracing.stable_callees import collect_stable_callees
 from scripts.mapping.ida_tracer.tracing.trace_export import (
     build_traced_functions_from_proto_infos,
@@ -367,6 +368,10 @@ def main() -> None:
                 enum_result.functions_by_address,
             ),
             enum_signatures_by_name=enum_result.enum_signatures_by_name,
+            operand_observations_by_message=collect_operand_observations(
+                result.values(), {message.composed_name: message for message in proto_messages},
+                {int(method.virtual_address, 16) for method in selected_methods},
+            ),
         ).model_dump_json(indent=2),
         encoding="utf-8",
     )

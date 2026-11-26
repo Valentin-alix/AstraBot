@@ -38,7 +38,7 @@ from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeData
 NAMESPACE = "Com.Ankama.Dofus.Server.Game.Protocol.Gamemap"
 FILE_DESCRIPTOR = "gamemap_reflection"
 NEW_NON_OBF_CLS = f"{NAMESPACE}.MapMovementConfirmResponse"
-EMPTY_ACCESS_TRACE = AccessTraceDocument(functions_by_address={})
+EMPTY_ACCESS_TRACE = AccessTraceDocument(functions_by_address={}, operand_observations_by_message={})
 
 
 def dump_cs_msg(*fields: DumpCSMessageField) -> DumpCSMessage:
@@ -347,6 +347,7 @@ def build_minimal_enum_trace_document(
         for called_function in member_group.called_functions
     }
     return AccessTraceDocument(
+        operand_observations_by_message={},
         functions_by_address={
             function_address: TracedFunction(
                 start_address=int(function_address, 16),

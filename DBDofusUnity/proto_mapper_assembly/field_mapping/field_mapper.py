@@ -15,6 +15,7 @@ from DBDofusUnity.proto_mapper_assembly.field_mapping.field_mapping_scoring impo
     score_field_pair,
 )
 from DBDofusUnity.proto_mapper_assembly.field_mapping.pulp.constraints import has_applicable_constraints
+from DBDofusUnity.proto_mapper_assembly.field_mapping.operand_provenance import resolve_permutation
 from DBDofusUnity.proto_mapper_assembly.field_mapping.pulp.solver import solve_field_mapping_ilp
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import MessageAccessSignature
 from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import DumpCSMessage, DumpCSMessageField
@@ -166,6 +167,9 @@ def _build_field_mappings(
             pair_data.append(FieldPairScore(obf_field, non_obf_field, score, pair_metadata))
 
     non_obf_indexes, obf_indexes = _solve_assignment(context, similarity_matrix)
+    obf_indexes = _apply_operand_permutation(
+        context, similarity_matrix, pair_metadata_by_indexes, non_obf_indexes, obf_indexes
+    )
     field_mappings: list[FieldPairScore] = []
     assigned_non_obf_indices: set[int] = {int(idx) for idx in non_obf_indexes}
     unmapped_non_obf: list[UnmappedNonObfField] = []
@@ -203,6 +207,62 @@ def _build_field_mappings(
         obf_fields=context.obf.fields,
     )
     return FieldMappingBuildResult(field_mappings, rejected_pairs, unmapped_non_obf)
+
+
+def _apply_operand_permutation(
+    context: PreparedFieldMappingContext,
+    scores: np.ndarray,
+    metadata: dict[tuple[int, int], FieldPairMetadata],
+    non_obf_indexes: np.ndarray,
+    obf_indexes: np.ndarray,
+) -> np.ndarray:
+    traces = context.field_mapping_context
+    reference = traces.non_obf_access_trace.operand_observations_by_message.get(
+        context.non_obf_signature.message_cls.removeprefix(".").casefold()
+    )
+    observed = traces.obf_access_trace.operand_observations_by_message.get(
+        context.obf_signature.message_cls.removeprefix(".").casefold()
+    )
+    if reference is None or observed is None or has_applicable_constraints(context.non_obf_signature.dump_cs_msg.name):
+        return obf_indexes
+
+    selected = {
+        context.obf.fields[int(obf)].clean_field_name: (index, int(non_obf), int(obf))
+        for index, (non_obf, obf) in enumerate(zip(non_obf_indexes, obf_indexes, strict=True))
+        if scores[non_obf, obf] > 0
+    }
+    mapping = {name: context.non_obf.fields[row].clean_field_name for name, (_, row, _) in selected.items()}
+    changes = resolve_permutation(mapping, reference, observed)
+    by_non_obf = {context.non_obf.fields[row].clean_field_name: (index, row, col)
+                  for index, row, col in selected.values()}
+    assignments: list[tuple[int, int, int]] = []
+    for obf_name, non_obf_name in changes.items():
+        index, row, old_col = by_non_obf[non_obf_name]
+        _, _, col = selected[obf_name]
+        old_pair = metadata[row, old_col]
+        new_pair = metadata[row, col]
+        if (
+            context.obf.fields[col].declared_field_shape != context.obf.fields[old_col].declared_field_shape
+            or old_pair.did_validation_run
+            or new_pair.did_validation_run
+            or new_pair.zero_score_reason is not None
+            or old_pair.child_match is not None
+            or new_pair.child_match is not None
+            or (
+                context.pinned_pair is not None
+                and non_obf_name in context.pinned_pair.field_mapping_by_non_obf
+            )
+        ):
+            return obf_indexes
+        assignments.append((index, row, col))
+
+    if not assignments:
+        return obf_indexes
+    result = obf_indexes.copy()
+    for index, row, col in assignments:
+        scores[row, col] = max(scores[row, col], scores[row, obf_indexes[index]])
+        result[index] = col
+    return result
 
 
 def _build_rejected_pairs(

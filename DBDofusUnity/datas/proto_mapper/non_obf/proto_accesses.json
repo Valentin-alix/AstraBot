@@ -1509674,5 +1509674,15 @@
         }
       ]
     }
+  },
+  "operand_observations_by_message": {
+    "com.ankama.dofus.server.game.protocol.common.entitylook": {
+      "function": "0x181d082d0",
+      "fields": {
+        "skins": null,
+        "indexed_colors": "split_element_high8_low24",
+        "scales": "read_zero_and_size_dependent_index"
+      }
+    }
   }
 }
