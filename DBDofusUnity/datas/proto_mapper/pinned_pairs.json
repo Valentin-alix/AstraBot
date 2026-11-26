@@ -36,6 +36,21 @@
       "field_mapping_by_obf": {
         "fwvp": "teleport_on_same_map"
       }
+    },
+    {
+      "obf": "iqn",
+      "non_obf": "Com.Ankama.Dofus.Server.Game.Protocol.Inventory.ObjectMovementEvent",
+      "field_mapping_by_obf": {
+        "fsmv": "object_uid",
+        "fsmx": "position"
+      }
+    },
+    {
+      "obf": "kbo",
+      "non_obf": "Com.Ankama.Dofus.Server.Game.Protocol.Exchange.SellingConditions",
+      "field_mapping_by_obf": {
+        "fykq": "types"
+      }
     }
   ]
 }

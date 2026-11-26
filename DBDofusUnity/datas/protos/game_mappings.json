@@ -4701,9 +4701,9 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeBidHouseGenericItemAddedEvent": {
-    "obf_msg_namespace": "kcu",
+    "obf_msg_namespace": "kea",
     "field_mapping": {
-      "fypi": "object_gid"
+      "fytk": "object_gid"
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeBidHouseGenericItemRemovedEvent": {
@@ -4877,9 +4877,9 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeCrafterJobLevelUpEvent": {
-    "obf_msg_namespace": "kdg",
+    "obf_msg_namespace": "kcu",
     "field_mapping": {
-      "fyqx": "crafter_job_level"
+      "fypi": "crafter_job_level"
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeErrorEvent": {
@@ -4950,14 +4950,12 @@
     "field_mapping": {}
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeMountWithoutPaddockStartedEvent": {
-    "obf_msg_namespace": "jzh",
+    "obf_msg_namespace": "kdz",
     "field_mapping": {}
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeMountsPaddockAddedEvent": {
-    "obf_msg_namespace": "jyo",
-    "field_mapping": {
-      "fxxs": "mounts"
-    }
+    "obf_msg_namespace": "jzh",
+    "field_mapping": {}
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeMountsPaddockRemoveEvent": {
     "obf_msg_namespace": "jyd",
@@ -4984,9 +4982,9 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeMultiCraftCrafterCanUseHisResourcesEvent": {
-    "obf_msg_namespace": "kdu",
+    "obf_msg_namespace": "jzm",
     "field_mapping": {
-      "fysp": "allowed"
+      "fybm": "allowed"
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeMultiCraftCrafterStartedEvent": {
@@ -5011,9 +5009,9 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeMultiCraftSetCrafterCanUseHisResourcesRequest": {
-    "obf_msg_namespace": "jzm",
+    "obf_msg_namespace": "kdu",
     "field_mapping": {
-      "fybm": "allow"
+      "fysp": "allow"
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeNpcShopStartedEvent": {
@@ -5124,9 +5122,9 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeObjectTransferTypeFromInventoryRequest": {
-    "obf_msg_namespace": "kea",
+    "obf_msg_namespace": "kdg",
     "field_mapping": {
-      "fytk": "object_type"
+      "fyqx": "object_type"
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeObjectUseInWorkshopRequest": {
@@ -5246,7 +5244,7 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeSoldEvent": {
-    "obf_msg_namespace": "keb",
+    "obf_msg_namespace": "kcz",
     "field_mapping": {}
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeStartedEvent": {
@@ -5283,7 +5281,7 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeStoppedEvent": {
-    "obf_msg_namespace": "kdz",
+    "obf_msg_namespace": "jyo",
     "field_mapping": {}
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ExchangeTaxCollectorEquipmentRequest": {
@@ -5362,7 +5360,7 @@
     }
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ObjectAveragePricesErrorEvent": {
-    "obf_msg_namespace": "kcz",
+    "obf_msg_namespace": "keb",
     "field_mapping": {}
   },
   ".com.ankama.dofus.server.game.protocol.exchange.ObjectAveragePricesEvent": {
@@ -7833,8 +7831,8 @@
   ".com.ankama.dofus.server.game.protocol.inventory.ObjectMovementEvent": {
     "obf_msg_namespace": "iqn",
     "field_mapping": {
-      "fsmw": "position",
-      "fsmx": "object_uid"
+      "fsmv": "object_uid",
+      "fsmx": "position"
     }
   },
   ".com.ankama.dofus.server.game.protocol.inventory.ObjectPriceHistoryEvent": {
