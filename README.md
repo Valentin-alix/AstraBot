@@ -82,6 +82,7 @@ Before using the Unity static-data tools, install **.NET 10** and
 in **Git Bash on Windows**:
 
 ```bash
+git submodule update --init --recursive -- DBDofusUnity/Il2CppInspectorRedux DBDofusUnity/protodec
 bash scripts/packaging/build-tools.sh
 ```
 
