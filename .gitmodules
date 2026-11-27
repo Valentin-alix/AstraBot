@@ -1,0 +1,8 @@
+[submodule "DBDofusUnity/protodec"]
+	path = DBDofusUnity/protodec
+	url = https://github.com/Xpl0itR/protodec.git
+	branch = master
+[submodule "DBDofusUnity/Il2CppInspectorRedux"]
+	path = DBDofusUnity/Il2CppInspectorRedux
+	url = https://github.com/LukeFZ/Il2CppInspectorRedux.git
+	branch = master
