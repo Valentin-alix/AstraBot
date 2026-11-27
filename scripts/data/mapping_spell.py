@@ -5,7 +5,6 @@ from functools import reduce
 
 from DBDofusUnity.dofus_unity_reader.data_center.data_reader import DataReader
 from DBDofusUnity.consts import PROJECT_ROOT
-from icecream import ic
 
 _MIN_THRESHOLD = 15
 
@@ -26,9 +25,9 @@ def map_spell_level(property_name: str) -> None:
                 count_flags_verified[spell_lvl.m_flags] += 1
 
     valids = [flag for flag, count in count_flags_verified.items() if count > _MIN_THRESHOLD]
-    ic(property_name, valids)
+    print(f"{property_name=}, {valids=}")
     res = reduce(lambda previous, flag: previous & flag, valids)
-    ic(property_name, res)
+    print(f"{property_name=}, {res=}")
 
 
 if __name__ == "__main__":

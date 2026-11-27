@@ -3,7 +3,6 @@ import json
 from collections import defaultdict
 from functools import reduce
 
-from icecream import ic
 
 from DBDofusUnity.consts import PROJECT_ROOT
 from DBDofusUnity.dofus_unity_reader.data_center.data_reader import DataReader
@@ -49,7 +48,7 @@ def map_capability(capability_name: str) -> None:
             # Bits also present in valuable_not_allow_capability are not characteristic.
             common_bits &= ~(value & common_bits)
 
-    ic(capability_name, common_bits)
+    print(f"{capability_name=}, {common_bits=}")
 
 
 if __name__ == "__main__":

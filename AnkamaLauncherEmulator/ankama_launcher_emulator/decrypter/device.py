@@ -9,7 +9,8 @@ from pathlib import Path
 import psutil
 
 import pythoncom
-import wmi
+from winerror import RPC_E_CHANGED_MODE
+from win32com.client import GetObject
 
 
 class Device:
@@ -84,10 +85,22 @@ class Device:
 
     @staticmethod
     def getCpuModel() -> str:
-        pythoncom.CoInitialize()
-        wmi_client = wmi.WMI()
-        cpu_info = wmi_client.Win32_Processor()[0]
-        return cpu_info.Name
+        try:
+            pythoncom.CoInitializeEx(pythoncom.COINIT_APARTMENTTHREADED)
+        except pythoncom.com_error as error:
+            if error.hresult != RPC_E_CHANGED_MODE:
+                raise
+            initialized_here = False
+        else:
+            initialized_here = True
+        try:
+            name = next(iter(GetObject(r"winmgmts:root\cimv2").ExecQuery("SELECT Name FROM Win32_Processor"))).Name
+            if not isinstance(name, str):
+                raise RuntimeError("WMI returned a non-string processor name")
+            return name
+        finally:
+            if initialized_here:
+                pythoncom.CoUninitialize()
 
     @staticmethod
     def getComputerRam() -> int:

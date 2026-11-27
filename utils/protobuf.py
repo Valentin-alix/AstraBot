@@ -7,4 +7,4 @@ if TYPE_CHECKING:
 
 
 def is_repeated_field(field_descriptor: "FieldDescriptor | UpbFieldDescriptor") -> bool:
-    return getattr(field_descriptor, "label") == FieldDescriptor.LABEL_REPEATED
+    return field_descriptor.is_repeated
