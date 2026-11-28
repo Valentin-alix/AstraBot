@@ -3,9 +3,6 @@ from dataclasses import dataclass
 
 from utils.singleton import Singleton
 
-from src.core.config import ENABLE_SESSION_CONTEXT
-from src.services.session_context import SessionContextService
-
 
 @dataclass(frozen=True, slots=True)
 class TimingProfile:
@@ -63,24 +60,17 @@ def pick_random_weighted_time(mini: float, maxi: float, coeff: float = 5) -> flo
 
 def get_random_range(range_time: tuple[float, float], is_weighted: bool = True, coeff: float = 5) -> float:
     if is_weighted:
-        wait_time = pick_random_weighted_time(*range_time, coeff)
-    else:
-        wait_time = random.uniform(*range_time)
-    if ENABLE_SESSION_CONTEXT:
-        wait_time *= SessionContextService().get_timing_modifier()
-    return wait_time
+        return pick_random_weighted_time(*range_time, coeff)
+    return random.uniform(*range_time)
 
 
 class HumanTimingsService(metaclass=Singleton):
     def _get_timing(self, profile: TimingProfile) -> float:
-        wait_time = random.triangular(
+        return random.triangular(
             profile.minimum_seconds,
             profile.maximum_seconds,
             profile.typical_seconds,
         )
-        if ENABLE_SESSION_CONTEXT:
-            wait_time *= SessionContextService().get_timing_modifier()
-        return wait_time
 
     def get_timing_short_action(self) -> float:
         return self._get_timing(SHORT_ACTION_TIMING)

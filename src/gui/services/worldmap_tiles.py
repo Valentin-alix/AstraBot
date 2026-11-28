@@ -21,11 +21,8 @@ type TileKey = tuple[int, int]
 class WorldMapLoader:
     def __init__(self) -> None:
         self._game_dir: str | None = None
-        self._unavailable = False
 
-    def load(self, world_id: int, number: int) -> IconResponse:
-        if self._unavailable:
-            return IconResponse()
+    def load(self, world_id: int, number: int) -> IconResponse | None:
         try:
             if self._game_dir is None:
                 self._game_dir = str(Path(resolve_dofus_path()).parent)
@@ -33,17 +30,15 @@ class WorldMapLoader:
                 IconRequest(self._game_dir, "worldmap", number, TILE_SIZE, world_id)
             )
             if response.error:
-                self._unavailable = True
                 logger.warning("Worldmap backgrounds unavailable: %s", response.error)
             return response
-        except Exception:
-            self._unavailable = True
+        except (OSError, RuntimeError):
             logger.warning("Worldmap decoding process unavailable", exc_info=True)
-            return IconResponse()
+            return None
 
 
 class _TileSignals(QObject):
-    loaded = pyqtSignal(int, int, IconResponse)
+    loaded = pyqtSignal(int, int, object)
 
 
 class _LoadTile(QRunnable):
@@ -93,10 +88,14 @@ class WorldMapTileCache(QObject):
             self._request(key)
         return image
 
-    @pyqtSlot(int, int, IconResponse)
-    def _loaded(self, world_id: int, number: int, response: IconResponse) -> None:
+    @pyqtSlot(int, int, object)
+    def _loaded(self, world_id: int, number: int, response: IconResponse | None) -> None:
         key = world_id, number
         self._pending.discard(key)
+        if response is None:
+            if key == (0, 0):
+                self._metadata_requested = False
+            return
         if key == (0, 0):
             self.worlds = {world.id: world for world in response.worldmaps or []}
         elif response.pixels:

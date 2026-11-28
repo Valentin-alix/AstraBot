@@ -1,8 +1,8 @@
+import re
 from collections import Counter
-from functools import cached_property
+from functools import cache, cached_property
 from typing import NamedTuple, override
 
-from utils.string_utils import camel_to_snake
 from pydantic import BaseModel, Field
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import (
@@ -32,8 +32,11 @@ class EnumFieldTypes(NamedTuple):
     value: str | None
 
 
+@cache
 def normalize_proto_field_name(field_name: str) -> str:
-    return camel_to_snake(field_name).removesuffix("_")
+    name = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", field_name)
+    name = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", name)
+    return name.lower().removesuffix("_")
 
 
 class DumpCSMessageProperty(BaseModel):

@@ -1,3 +1,4 @@
+import socket
 import sys
 import traceback
 from collections import defaultdict
@@ -25,9 +26,11 @@ from src.services.logging_utils.loggers import (
     configure_root_logger,
     init_root_gui_logging,
 )
-from src.utils.runtime_paths import configure_project_import_paths
+from src.protocol import initialize_protocol
+from src.protocol.protocol_game import install_capture_hooks
 
-configure_project_import_paths()
+initialize_protocol()
+install_capture_hooks()
 load_dotenv(ENV_PATH)
 
 from src.core.bot.bot_factory import generate_random_bot
@@ -40,7 +43,6 @@ from src.protocol.protocol_connection import (
     get_conn_msg_info,
 )
 from src.protocol.protocol_game import get_game_msg, get_game_msg_info
-from src.utils.internet import get_local_ip
 
 
 @dataclass
@@ -54,7 +56,9 @@ class Sniffer:
 
     @cached_property
     def local_ip(self) -> str:
-        return get_local_ip()
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
 
     def on_receive(self, packet: Packet) -> None:
         if Raw not in packet:

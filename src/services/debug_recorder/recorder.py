@@ -344,11 +344,6 @@ def create_bot_session_debug_recorder(
 ) -> DebugRecorder:
     account_logs_directory = logs_directory / login
     account_logs_directory.mkdir(parents=True, exist_ok=True)
-    _migrate_legacy_bot_debug_log(
-        logs_directory,
-        account_logs_directory,
-        login,
-    )
 
     started_at = session_started_at or datetime.now().astimezone()
     assert started_at.tzinfo is not None, "Bot debug session timestamp must be timezone-aware"
@@ -365,22 +360,6 @@ def create_bot_session_debug_recorder(
         name=f"DebugHistory-{login}",
     ).start()
     return recorder
-
-
-def _migrate_legacy_bot_debug_log(
-    logs_directory: Path,
-    account_logs_directory: Path,
-    login: str,
-) -> None:
-    legacy_path = logs_directory / f"{login}.debug.jsonl"
-    if not legacy_path.exists():
-        return
-    legacy_timestamp = (
-        datetime.fromtimestamp(legacy_path.stat().st_mtime).astimezone().strftime(_SESSION_TIMESTAMP_FORMAT)
-    )
-    migrated_path = account_logs_directory / f"legacy-{legacy_timestamp}.debug.jsonl"
-    assert not migrated_path.exists(), f"Migrated debug log already exists: {migrated_path}"
-    legacy_path.replace(migrated_path)
 
 
 def _maintain_bot_debug_history(

@@ -9,9 +9,6 @@ from src.utils.project_paths import IS_PACKAGED
 
 ENABLE_MSG_CAPTURE = not IS_PACKAGED
 
-ENABLE_SESSION_CONTEXT = False
-
-
 class BehaviorSettings(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 

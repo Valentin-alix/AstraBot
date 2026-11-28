@@ -22,11 +22,8 @@ class IconLoader:
         self._kind = kind
         self._size = size
         self._game_dir: str | None = None
-        self._unavailable = False
 
-    def load(self, icon_id: int) -> QImage:
-        if self._unavailable:
-            return QImage()
+    def load(self, icon_id: int) -> QImage | None:
         try:
             if self._game_dir is None:
                 self._game_dir = str(Path(resolve_dofus_path()).parent)
@@ -37,14 +34,13 @@ class IconLoader:
             if not response.pixels:
                 return QImage()
             return decoded_image(response)
-        except Exception:
-            self._unavailable = True
+        except (OSError, RuntimeError):
             logger.warning("Icon decoding process is unavailable", exc_info=True)
-            return QImage()
+            return None
 
 
 class _IconSignals(QObject):
-    loaded = pyqtSignal(int, QImage)
+    loaded = pyqtSignal(int, object)
 
 
 class _LoadIcon(QRunnable):
@@ -69,7 +65,6 @@ class ItemIconCache(QObject):
         loader: IconLoader | None = None,
     ) -> None:
         super().__init__(parent)
-        self._max_bytes = max_bytes
         self._images = LRUCache[int, QImage](max_bytes, getsizeof=QImage.sizeInBytes)
         self._pending: set[int] = set()
         self._request_priority = 0
@@ -99,13 +94,15 @@ class ItemIconCache(QObject):
             self._pool.start(_LoadIcon(self._loader, self._signals, icon_id), self._request_priority)
         return None
 
-    @pyqtSlot(int, QImage)
-    def _loaded(self, icon_id: int, image: QImage) -> None:
+    @pyqtSlot(int, object)
+    def _loaded(self, icon_id: int, image: QImage | None) -> None:
         self._pending.discard(icon_id)
+        if image is None:
+            return
         if image.isNull():
             self._missing.add(icon_id)
             return
-        if image.sizeInBytes() > self._max_bytes:
+        if image.sizeInBytes() > self._images.maxsize:
             self._images.clear()
         else:
             self._images[icon_id] = image

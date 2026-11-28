@@ -1,6 +1,6 @@
 from threading import Lock
 lazy from DBDofusUnity.consts import PROTOS_ROOT
-lazy from src.utils.registry import import_and_get_all_msg_from_folder
+lazy from src.utils.registry import import_proto_modules
 
 _initialization_lock = Lock()
 _initialized = False
@@ -14,5 +14,5 @@ def initialize_protocol() -> None:
         if _initialized:
             return
         for folder in ("obf/game", "non_obf/game", "non_obf/connection"):
-            import_and_get_all_msg_from_folder(str(PROTOS_ROOT / folder))
+            import_proto_modules(str(PROTOS_ROOT / folder))
         _initialized = True

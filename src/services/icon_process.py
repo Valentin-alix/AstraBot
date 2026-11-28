@@ -34,12 +34,22 @@ class IconProcess:
                     )
                 process = self._process
             assert process.stdin is not None and process.stdout is not None
-            process.stdin.write(msgspec.json.encode(request) + b"\n")
-            process.stdin.flush()
-            response = process.stdout.readline()
-            if not response:
-                raise RuntimeError("The icon decoding process stopped unexpectedly")
-            return msgspec.json.decode(response, type=IconResponse)
+            try:
+                process.stdin.write(msgspec.json.encode(request) + b"\n")
+                process.stdin.flush()
+                response = process.stdout.readline()
+                if not response:
+                    raise EOFError("The icon decoding process stopped unexpectedly")
+                return msgspec.json.decode(response, type=IconResponse)
+            except (OSError, EOFError, msgspec.DecodeError) as error:
+                with self._state_lock:
+                    owns_process = self._process is process
+                    if owns_process:
+                        self._process = None
+                if owns_process:
+                    process.kill()
+                    self._close_pipes(process)
+                raise RuntimeError("Communication with the icon decoding process failed") from error
 
     def close(self) -> None:
         with self._state_lock:
@@ -50,12 +60,16 @@ class IconProcess:
             return
         process.kill()
         with self._request_lock:
-            if process.stdin is not None:
-                with suppress(BrokenPipeError):
-                    process.stdin.close()
-            if process.stdout is not None:
-                process.stdout.close()
-            process.wait()
+            self._close_pipes(process)
+
+    @staticmethod
+    def _close_pipes(process: subprocess.Popen[bytes]) -> None:
+        if process.stdin is not None:
+            with suppress(BrokenPipeError):
+                process.stdin.close()
+        if process.stdout is not None:
+            process.stdout.close()
+        process.wait()
 
 
 icon_process = IconProcess()
