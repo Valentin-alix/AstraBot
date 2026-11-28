@@ -115,7 +115,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         default=None,
         help="Write outcomes, field identities and duration as JSON.",
     )
-    parser.add_argument("--jobs", type=int, default=4, help="Number of replay processes (default: 2).")
+    parser.add_argument("--jobs", type=int, default=4, help="Number of replay processes (default: %(default)s).")
     return parser
 
 

@@ -281,6 +281,24 @@ class TestDumpScript:
         assert il2cpp_mock.call_count == 2
         assert ida_mock.call_count == 2
 
+    def test_missing_export_keeps_previous_dump_and_mtime(self, tmp_path: Path) -> None:
+        self._write_dump_cs(tmp_path, "previous dump")
+        (tmp_path / "GameAssembly.dll").write_bytes(b"new assembly")
+        marker = tmp_path / dump_script.GAME_ASSEMBLY_MARKER_NAME
+        marker.write_text("0", encoding="utf-8")
+        (tmp_path / "game_messages.proto").write_text("previous proto", encoding="utf-8")
+
+        with (
+            patch.object(dump_script, "run_il2cpp_inspector"),
+            patch.object(dump_script, "run_protodec"),
+            pytest.raises(FileNotFoundError, match="Il2CppInspector did not produce"),
+        ):
+            dump_script.update_protos(use_obf=True, obf_dir=tmp_path)
+
+        assert marker.read_text(encoding="utf-8") == "0"
+        assert (tmp_path / dump_script.PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH).read_text() == "previous dump"
+        assert (tmp_path / "game_messages.proto").read_text() == "previous proto"
+
     def test_update_protos_redumps_when_game_assembly_changes(self, tmp_path: Path) -> None:
         obf_dir = tmp_path / "20_05_2026"
         obf_dir.mkdir()

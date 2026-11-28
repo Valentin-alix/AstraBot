@@ -6,6 +6,7 @@ from time import perf_counter
 from typing import Final, ParamSpec, TypeVar
 
 from src.utils.project_paths import IS_PACKAGED
+from src.utils.runtime_support import RuntimeSetupError
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -14,7 +15,12 @@ R = TypeVar("R")
 def _profiling_enabled() -> bool:
     if IS_PACKAGED:
         return False
-    return bool(os.environ.get("PROFILING_ENABLED", 0))
+    value = os.environ.get("PROFILING_ENABLED", "false").lower()
+    if value in ("1", "true"):
+        return True
+    if value in ("0", "false"):
+        return False
+    raise RuntimeSetupError("The PROFILING_ENABLED variable must be 0, 1, false, or true.")
 
 
 PROFILING_ENABLED: Final = _profiling_enabled()

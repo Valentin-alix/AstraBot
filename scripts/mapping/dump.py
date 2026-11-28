@@ -98,7 +98,10 @@ def update_protos(*, use_obf: bool, obf_dir: Path | None = None, force: bool = F
             _archive_previous_obf_dump(target)
         with TemporaryDirectory(prefix="astrabot-dump-") as temporary_dir:
             staging = Path(temporary_dir)
-            _export_dump(target, staging)
+            run_il2cpp_inspector(target.game_assembly, target.metadata, staging)
+            if not (staging / PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH).is_file():
+                raise FileNotFoundError(f"Il2CppInspector did not produce {PROTOCOL_GAME_DUMP_CS_RELATIVE_PATH}")
+            run_protodec(staging / "dll" / "Ankama.Dofus.Protocol.Game.dll", target.proto_output)
             _copy_dump_inputs(staging, target.output_folder)
 
         if use_obf:
@@ -151,11 +154,6 @@ def _archive_previous_obf_dump(target: ProtoDumpTarget) -> None:
     shutil.copy2(GAME_MAPPINGS_JSON_FILE, snapshot_dir / GAME_MAPPINGS_JSON_FILE.name)
     if PINNED_PAIRS_FILE.is_file():
         shutil.copy2(PINNED_PAIRS_FILE, snapshot_dir / PINNED_PAIRS_FILE.name)
-
-
-def _export_dump(target: ProtoDumpTarget, output_folder: Path) -> None:
-    run_il2cpp_inspector(target.game_assembly, target.metadata, output_folder)
-    run_protodec(output_folder / "dll" / "Ankama.Dofus.Protocol.Game.dll", target.proto_output)
 
 
 def _copy_dump_inputs(source: Path, destination: Path) -> None:

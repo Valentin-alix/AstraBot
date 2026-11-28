@@ -4,6 +4,9 @@ from collections.abc import Callable
 
 from utils.singleton import Singleton
 from filelock import FileLock
+from pydantic import ValidationError
+
+from src.utils.runtime_support import RuntimeSetupError
 
 from ankama_launcher_emulator.consts import BOTS_STORAGE_PATH
 from ankama_launcher_emulator.controller.mail_account import (
@@ -34,7 +37,11 @@ class BotStorageController(metaclass=Singleton):
     def _load(self) -> BotsFile:
         if not BOTS_STORAGE_PATH.exists():
             return BotsFile()
-        return BotsFile.model_validate_json(BOTS_STORAGE_PATH.read_text(encoding="utf-8"))
+        try:
+            return BotsFile.model_validate_json(BOTS_STORAGE_PATH.read_text(encoding="utf-8"))
+        except (ValidationError, UnicodeError) as error:
+            message = f"Invalid local file: {BOTS_STORAGE_PATH.name}. Fix it or restore a backup."
+            raise RuntimeSetupError(message) from error
 
     def _save(self, bots_file: BotsFile) -> None:
         atomic_write_text(BOTS_STORAGE_PATH, bots_file.model_dump_json(indent=2))
