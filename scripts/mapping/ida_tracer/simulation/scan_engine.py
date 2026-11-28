@@ -1,5 +1,6 @@
 from collections import deque
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import ida_gdl
 import idaapi
@@ -73,6 +74,17 @@ from scripts.mapping.ida_tracer.state.types import (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class _ScanLookups:
+    proto_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]]
+    tracking_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]]
+    tracking_type_lookup: dict[str, str]
+    getter_setter_lookup: dict[int, list[AccessorCandidate]]
+    typeinfo_lookup: dict[int, str]
+    methodinfo_get_enumerator_lookup: dict[int, str]
+    ienumerator_typeinfo_lookup: dict[int, str]
+
+
 def scan_function_instructions(
     func: idaapi.func_t,
     initial_reg_state: RegisterState,
@@ -105,6 +117,27 @@ def scan_function_instructions(
             cache={},
             active_keys=set(),
         )
+    lookups = _ScanLookups(
+        proto_fields_by_class_and_offset,
+        tracking_fields_by_class_and_offset,
+        tracking_type_lookup,
+        getter_setter_lookup,
+        typeinfo_lookup,
+        resolved_methodinfo_lookup,
+        resolved_ienumerator_typeinfo_lookup,
+    )
+    return _scan_function_instructions(
+        func, initial_state, lookups, resolved_interprocedural_context, function_scan_cache
+    )
+
+
+def _scan_function_instructions(
+    func: idaapi.func_t,
+    initial_state: AnalysisState,
+    lookups: _ScanLookups,
+    resolved_interprocedural_context: InterproceduralContext,
+    function_scan_cache: FunctionScanCache | None,
+) -> list[AccessEntry]:
     scan_plan = build_function_scan_plan(func, function_scan_cache)
     if len(scan_plan.blocks) == 1 and not scan_plan.blocks[scan_plan.entry_block_start].successors:
         input_states = {scan_plan.entry_block_start: initial_state}
@@ -112,13 +145,7 @@ def scan_function_instructions(
         input_states = _compute_block_input_states(
             scan_plan,
             initial_state,
-            proto_fields_by_class_and_offset,
-            tracking_fields_by_class_and_offset,
-            tracking_type_lookup,
-            getter_setter_lookup,
-            typeinfo_lookup,
-            resolved_methodinfo_lookup,
-            resolved_ienumerator_typeinfo_lookup,
+            lookups,
         )
 
     collected: list[AccessEntry] = []
@@ -129,13 +156,7 @@ def scan_function_instructions(
         block_entries, _ = _scan_basic_block(
             scan_plan.instructions_by_block[block_start],
             input_state,
-            proto_fields_by_class_and_offset,
-            tracking_fields_by_class_and_offset,
-            tracking_type_lookup,
-            getter_setter_lookup,
-            typeinfo_lookup,
-            resolved_methodinfo_lookup,
-            resolved_ienumerator_typeinfo_lookup,
+            lookups,
             interprocedural_context=resolved_interprocedural_context,
             function_scan_cache=function_scan_cache,
         )
@@ -146,13 +167,7 @@ def scan_function_instructions(
     linear_entries, _ = _scan_basic_block(
         _get_linear_function_instructions(func, scan_plan),
         initial_state,
-        proto_fields_by_class_and_offset,
-        tracking_fields_by_class_and_offset,
-        tracking_type_lookup,
-        getter_setter_lookup,
-        typeinfo_lookup,
-        resolved_methodinfo_lookup,
-        resolved_ienumerator_typeinfo_lookup,
+        lookups,
         interprocedural_context=resolved_interprocedural_context,
         function_scan_cache=function_scan_cache,
     )
@@ -191,7 +206,7 @@ def _build_basic_blocks(
         return _build_single_block_cfg(func)
 
     blocks: dict[int, BasicBlock] = {}
-    predecessor_sets: dict[int, set[int]] = {}
+    predecessors: dict[int, tuple[int, ...]] = {}
     entry_block_start = func.start_ea
     for raw_block in flow_chart:
         block_start = int(raw_block.start_ea)
@@ -204,13 +219,7 @@ def _build_basic_blocks(
             end_ea=block_end,
             successors=successor_starts,
         )
-        predecessor_sets.setdefault(block_start, set())
-        for successor_start in successor_starts:
-            predecessor_sets.setdefault(successor_start, set()).add(block_start)
-
-    predecessors = {
-        block_start: tuple(sorted(predecessor_sets.get(block_start, set()))) for block_start in blocks
-    }
+        predecessors[block_start] = tuple(sorted({int(pred.start_ea) for pred in raw_block.preds()}))
     return blocks, predecessors, entry_block_start
 
 
@@ -235,8 +244,8 @@ def _decode_instruction_range(start_ea: int, end_ea: int) -> tuple[DecodedInstru
 
 
 def _decode_instruction(ea: int) -> DecodedInstruction | None:
-    insn = idaapi.insn_t()
-    if idaapi.decode_insn(insn, ea) == 0:
+    insn = idautils.DecodeInstruction(ea)
+    if insn is None:
         return None
     return DecodedInstruction(ea=ea, insn=insn, mnemonic=insn.get_canon_mnem())
 
@@ -265,13 +274,7 @@ def _get_linear_function_instructions(
 def _compute_block_input_states(
     scan_plan: FunctionScanPlan,
     initial_state: AnalysisState,
-    proto_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_type_lookup: dict[str, str],
-    getter_setter_lookup: dict[int, list[AccessorCandidate]],
-    typeinfo_lookup: dict[int, str],
-    methodinfo_get_enumerator_lookup: dict[int, str],
-    ienumerator_typeinfo_lookup: dict[int, str],
+    lookups: _ScanLookups,
 ) -> dict[int, AnalysisState]:
     input_states: dict[int, AnalysisState] = {scan_plan.entry_block_start: copy_analysis_state(initial_state)}
     output_states: dict[int, AnalysisState] = {}
@@ -287,13 +290,7 @@ def _compute_block_input_states(
         _, output_state = _scan_basic_block(
             scan_plan.instructions_by_block[block_start],
             input_state,
-            proto_fields_by_class_and_offset,
-            tracking_fields_by_class_and_offset,
-            tracking_type_lookup,
-            getter_setter_lookup,
-            typeinfo_lookup,
-            methodinfo_get_enumerator_lookup,
-            ienumerator_typeinfo_lookup,
+            lookups,
             collect_entries=False,
             function_scan_cache=None,
         )
@@ -325,13 +322,7 @@ def _compute_block_input_states(
 def _scan_basic_block(
     instructions: Sequence[DecodedInstruction],
     input_state: AnalysisState,
-    proto_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_type_lookup: dict[str, str],
-    getter_setter_lookup: dict[int, list[AccessorCandidate]],
-    typeinfo_lookup: dict[int, str],
-    methodinfo_get_enumerator_lookup: dict[int, str],
-    ienumerator_typeinfo_lookup: dict[int, str],
+    lookups: _ScanLookups,
     interprocedural_context: InterproceduralContext | None = None,
     collect_entries: bool = True,
     function_scan_cache: FunctionScanCache | None = None,
@@ -343,13 +334,7 @@ def _scan_basic_block(
             _process_instruction(
                 decoded,
                 state,
-                proto_fields_by_class_and_offset,
-                tracking_fields_by_class_and_offset,
-                tracking_type_lookup,
-                getter_setter_lookup,
-                typeinfo_lookup,
-                methodinfo_get_enumerator_lookup,
-                ienumerator_typeinfo_lookup,
+                lookups,
                 interprocedural_context,
                 collect_entries=collect_entries,
                 function_scan_cache=function_scan_cache,
@@ -361,13 +346,7 @@ def _scan_basic_block(
 def _process_instruction(
     insn: DecodedInstruction,
     state: AnalysisState,
-    proto_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_type_lookup: dict[str, str],
-    getter_setter_lookup: dict[int, list[AccessorCandidate]],
-    typeinfo_lookup: dict[int, str],
-    methodinfo_get_enumerator_lookup: dict[int, str],
-    ienumerator_typeinfo_lookup: dict[int, str],
+    lookups: _ScanLookups,
     interprocedural_context: InterproceduralContext | None = None,
     *,
     collect_entries: bool = True,
@@ -381,8 +360,8 @@ def _process_instruction(
         ea,
         mnemonic,
         state,
-        proto_fields_by_class_and_offset,
-        getter_setter_lookup,
+        lookups.proto_fields_by_class_and_offset,
+        lookups.getter_setter_lookup,
         collect_entries=collect_entries,
     )
     if collect_entries:
@@ -393,7 +372,7 @@ def _process_instruction(
                 insn,
                 ea,
                 state.reg_state,
-                proto_fields_by_class_and_offset,
+                lookups.proto_fields_by_class_and_offset,
             )
         )
     if mnemonic in {"mov", "movzx", "movsxd"}:
@@ -403,16 +382,16 @@ def _process_instruction(
             state.frame_state,
             state.stack_state,
             state.heap_state,
-            tracking_fields_by_class_and_offset,
-            tracking_type_lookup,
+            lookups.tracking_fields_by_class_and_offset,
+            lookups.tracking_type_lookup,
         )
         if mnemonic == "mov":
             handle_mov_type_guard_instruction(insn, state.reg_state)
             typeinfo_entries = handle_mov_typeinfo_instruction(
                 insn,
-                typeinfo_lookup,
+                lookups.typeinfo_lookup,
                 state.reg_state,
-                ienumerator_typeinfo_lookup=ienumerator_typeinfo_lookup,
+                ienumerator_typeinfo_lookup=lookups.ienumerator_typeinfo_lookup,
                 ea=ea,
                 collect_entries=collect_entries,
             )
@@ -420,7 +399,7 @@ def _process_instruction(
                 collected.extend(typeinfo_entries)
             handle_mov_methodinfo_instruction(
                 insn,
-                methodinfo_get_enumerator_lookup,
+                lookups.methodinfo_get_enumerator_lookup,
                 state.reg_state,
             )
     elif mnemonic in CMOV_MNEMONICS:
@@ -430,13 +409,13 @@ def _process_instruction(
             state.frame_state,
             state.stack_state,
             state.heap_state,
-            tracking_fields_by_class_and_offset,
-            tracking_type_lookup,
+            lookups.tracking_fields_by_class_and_offset,
+            lookups.tracking_type_lookup,
         )
         apply_type_guarded_cmov(insn, state.reg_state, state.type_guard)
         state.type_guard = None
     elif mnemonic == "cmp":
-        state.type_guard = resolve_type_guard_compare(insn, state.reg_state, typeinfo_lookup)
+        state.type_guard = resolve_type_guard_compare(insn, state.reg_state, lookups.typeinfo_lookup)
     elif mnemonic == "test":
         state.type_guard = None
     elif mnemonic in ARITHMETIC_MNEMONICS:
@@ -445,7 +424,7 @@ def _process_instruction(
     elif mnemonic == "call":
         state.type_guard = None
         direct_call_entries = (
-            handle_call_instruction(insn, getter_setter_lookup, state.reg_state, ea)
+            handle_call_instruction(insn, lookups.getter_setter_lookup, state.reg_state, ea)
             if collect_entries
             else []
         )
@@ -455,13 +434,7 @@ def _process_instruction(
                 _collect_interprocedural_call_accesses(
                     insn,
                     state,
-                    proto_fields_by_class_and_offset,
-                    tracking_fields_by_class_and_offset,
-                    tracking_type_lookup,
-                    getter_setter_lookup,
-                    typeinfo_lookup,
-                    methodinfo_get_enumerator_lookup,
-                    ienumerator_typeinfo_lookup,
+                    lookups,
                     interprocedural_context,
                     function_scan_cache,
                     call_ea=ea,
@@ -470,8 +443,8 @@ def _process_instruction(
         update_register_state_for_call(
             insn,
             state.reg_state,
-            getter_setter_lookup,
-            ienumerator_typeinfo_lookup,
+            lookups.getter_setter_lookup,
+            lookups.ienumerator_typeinfo_lookup,
             heap_state=state.heap_state,
             stack_state=state.stack_state,
         )
@@ -479,11 +452,11 @@ def _process_instruction(
         state.type_guard = None
         lea_entries = handle_lea_instruction(
             insn,
-            typeinfo_lookup,
+            lookups.typeinfo_lookup,
             state.reg_state,
-            proto_fields_by_class_and_offset,
-            methodinfo_get_enumerator_lookup=methodinfo_get_enumerator_lookup,
-            ienumerator_typeinfo_lookup=ienumerator_typeinfo_lookup,
+            lookups.proto_fields_by_class_and_offset,
+            methodinfo_get_enumerator_lookup=lookups.methodinfo_get_enumerator_lookup,
+            ienumerator_typeinfo_lookup=lookups.ienumerator_typeinfo_lookup,
             ea=ea,
             frame_state=state.frame_state,
             collect_entries=collect_entries,
@@ -505,13 +478,7 @@ def _process_instruction(
 def _collect_interprocedural_call_accesses(
     insn: DecodedInstruction,
     state: AnalysisState,
-    proto_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_fields_by_class_and_offset: dict[str, dict[int, DumpCSMessageField]],
-    tracking_type_lookup: dict[str, str],
-    getter_setter_lookup: dict[int, list[AccessorCandidate]],
-    typeinfo_lookup: dict[int, str],
-    methodinfo_get_enumerator_lookup: dict[int, str],
-    ienumerator_typeinfo_lookup: dict[int, str],
+    lookups: _ScanLookups,
     context: InterproceduralContext,
     function_scan_cache: FunctionScanCache | None,
     *,
@@ -543,19 +510,11 @@ def _collect_interprocedural_call_accesses(
         active_keys=context.active_keys,
     )
     try:
-        entries = scan_function_instructions(
+        entries = _scan_function_instructions(
             target_func,
-            call_arg_state,
-            build_initial_frame_state(),
-            {},
-            proto_fields_by_class_and_offset,
-            tracking_fields_by_class_and_offset,
-            tracking_type_lookup,
-            getter_setter_lookup,
-            typeinfo_lookup,
-            methodinfo_get_enumerator_lookup,
-            ienumerator_typeinfo_lookup,
-            interprocedural_context=nested_context,
+            AnalysisState(call_arg_state, build_initial_frame_state(), {}, {}),
+            lookups,
+            resolved_interprocedural_context=nested_context,
             function_scan_cache=function_scan_cache,
         )
     finally:

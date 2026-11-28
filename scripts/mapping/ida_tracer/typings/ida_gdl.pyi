@@ -7,6 +7,7 @@ class BasicBlock:
     end_ea: int
 
     def succs(self) -> Sequence[BasicBlock]: ...
+    def preds(self) -> Iterator[BasicBlock]: ...
 
 class FlowChart:
     size: int

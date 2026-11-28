@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import ida_hexrays
+import ida_lines
 import ida_nalt
 import ida_typeinf
 import idaapi
@@ -173,26 +174,32 @@ class _EnumFunctionResolver:
             self._metadata_by_addr[function_addr] = metadata
             return metadata
 
-        ida_type_signature = _get_ida_type_signature(function_addr)
-        if ida_type_signature is not None:
+        native_type = ida_typeinf.tinfo_t()
+        if ida_nalt.get_tinfo(native_type, function_addr) and (
+            ida_type_signature := native_type.dstr().strip()
+        ):
             metadata = _build_metadata(
                 function_addr=function_addr,
                 resolution_kind="ida_type",
                 function_size=function_size,
                 raw_name=raw_name,
                 raw_signature=ida_type_signature,
+                native_type=native_type,
             )
             self._metadata_by_addr[function_addr] = metadata
             return metadata
 
-        decompiled_signature = _get_decompiled_signature(function_addr, preferred_cfunc=preferred_cfunc)
-        if decompiled_signature is not None:
+        cfunc = preferred_cfunc if preferred_cfunc is not None else _try_decompile(function_addr)
+        if cfunc is not None and (
+            declaration := _COMMENT_RE.sub("", ida_lines.tag_remove(cfunc.print_dcl())).strip()
+        ):
             metadata = _build_metadata(
                 function_addr=function_addr,
                 resolution_kind="decompiled",
                 function_size=function_size,
                 raw_name=raw_name,
-                raw_signature=decompiled_signature,
+                raw_signature=declaration,
+                native_type=native_type if cfunc.get_func_type(native_type) else None,
             )
             self._metadata_by_addr[function_addr] = metadata
             return metadata
@@ -247,9 +254,8 @@ def scan_methods_for_enum_switches(
         candidates = class_candidates_by_ea.get(func_ea)
         if not candidates:
             continue
-        try:
-            cfunc = ida_hexrays.decompile(func_ea)
-        except ida_hexrays.DecompilationFailure:
+        cfunc = _try_decompile(func_ea)
+        if cfunc is None:
             continue
         for enum_name, pattern in _extract_switch_patterns(
             func_ea,
@@ -499,8 +505,12 @@ def _build_metadata(
     function_size: int,
     raw_name: str | None,
     raw_signature: str | None,
+    native_type: ida_typeinf.tinfo_t | None = None,
 ) -> _ResolvedFunctionMetadata:
-    return_type, parameter_types = _parse_descriptor_signature(raw_signature)
+    details = _get_native_signature_types(native_type) if native_type is not None else None
+    return_type, parameter_types = (
+        details if details is not None else _parse_descriptor_signature(raw_signature)
+    )
     return _ResolvedFunctionMetadata(
         function_addr=function_addr,
         resolution_kind=resolution_kind,
@@ -532,38 +542,25 @@ def _safe_get_name(function_addr: int) -> str | None:
     return raw_name or None
 
 
-def _get_ida_type_signature(function_addr: int) -> str | None:
-    tinfo = ida_typeinf.tinfo_t()
-    if not ida_nalt.get_tinfo(tinfo, function_addr):
+def _try_decompile(function_addr: int) -> ida_hexrays.cfunc_t | None:
+    try:
+        return ida_hexrays.decompile(function_addr)
+    except ida_hexrays.DecompilationFailure:
         return None
-    raw_signature = str(tinfo.dstr()).strip()
-    return raw_signature or None
 
 
-def _get_decompiled_signature(
-    function_addr: int,
-    *,
-    preferred_cfunc: ida_hexrays.cfunc_t | None = None,
-) -> str | None:
-    cfunc = preferred_cfunc
-    if cfunc is None:
-        try:
-            cfunc = ida_hexrays.decompile(function_addr)
-        except ida_hexrays.DecompilationFailure:
-            return None
-    pseudocode_lines = cfunc.get_pseudocode()
-    signature_parts: list[str] = []
-    for line in pseudocode_lines:
-        cleaned_line = _COMMENT_RE.sub("", line.line).strip()
-        if not cleaned_line:
-            continue
-        if cleaned_line == "{":
-            break
-        signature_parts.append(cleaned_line.removesuffix("{").strip())
-        if cleaned_line.endswith(("{", ")")):
-            break
-    signature = " ".join(part for part in signature_parts if part).strip()
-    return signature or None
+def _get_native_signature_types(tinfo: ida_typeinf.tinfo_t) -> tuple[str | None, list[str]] | None:
+    details = ida_typeinf.func_type_data_t()
+    if not tinfo.get_func_details(details):
+        return None
+    args = list(details)
+    if args and args[0].name == "this":
+        args = args[1:]
+    if args and is_method_info_parameter(f"{args[-1].type.dstr()} {args[-1].name}"):
+        args.pop()
+    return _normalize_signature_type(details.rettype.dstr()), [
+        value for arg in args if (value := _normalize_signature_type(arg.type.dstr())) is not None
+    ]
 
 
 def _parse_descriptor_signature(raw_signature: str | None) -> tuple[str | None, list[str]]:

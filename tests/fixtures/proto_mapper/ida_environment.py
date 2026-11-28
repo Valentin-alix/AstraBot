@@ -8,6 +8,7 @@ IDA_MODULES = [
     "idaapi",
     "idc",
     "ida_hexrays",
+    "ida_lines",
     "ida_auto",
     "ida_pro",
     "idautils",
@@ -69,6 +70,11 @@ def _print_insn_mnem(ea: int) -> str:
 
 def _heads(_start_ea: int, _end_ea: int) -> tuple[int, ...]:
     return ()
+
+
+def _decode_instruction(ea: int) -> idaapi.insn_t | None:
+    insn = idaapi.insn_t()
+    return insn if idaapi.decode_insn(insn, ea) else None
 
 
 def _func_items(ea: int) -> tuple[int, ...]:
@@ -135,6 +141,7 @@ def _install_ida_ua_mock() -> None:
 
 def _install_idautils_mock() -> None:
     setattr(idautils, "Heads", _heads)
+    setattr(idautils, "DecodeInstruction", _decode_instruction)
     setattr(idautils, "FuncItems", _func_items)
 
 

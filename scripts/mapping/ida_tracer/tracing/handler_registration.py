@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 import idaapi
+import idautils
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.assembly_access import HandlerRegistrationAccessEntry
 from scripts.mapping.ida_tracer.core.function_inspector import (
@@ -45,8 +46,8 @@ def collect_handler_registration_accesses(
     for instruction_address in operation_indices:
         decoded = instructions_by_address.get(instruction_address)
         if decoded is None:
-            insn = idaapi.insn_t()
-            if idaapi.decode_insn(insn, instruction_address) <= 0:
+            insn = idautils.DecodeInstruction(instruction_address)
+            if insn is None:
                 continue
             operands = tuple(insn.ops)
         else:
