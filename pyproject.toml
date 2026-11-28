@@ -7,6 +7,7 @@ requires-python = "==3.15.2"
 readme = "README.md"
 
 dependencies = [
+    "cachetools==8.0.3",
     "psutil==7.2.2",
     "msgspec==0.22.0",
     "protobuf==7.36.2",
@@ -25,13 +26,13 @@ dependencies = [
     "filelock==4.3.1",
     "pillow>=13.0.0",
     "unitypy>=1.25.4",
+    "velopack==1.2.161",
 ]
 
 [dependency-groups]
 dev = [
     "idapro>=0.0.7",
     "scapy==2.8.0",
-    "cachetools==8.0.3",
     "pulp[cbc]==4.3.1",
     "vulture==2.16",
     "frida-tools==14.13.2",

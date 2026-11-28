@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,18 +15,10 @@ lazy from ankama_launcher_emulator.interfaces.local_storage import BotRecord
 from src.services.display_catalog import load_display_catalog
 from src.services.github_auth import require_github_sign_in
 from src.utils.project_paths import IS_PACKAGED
-from src.utils.runtime_support import RuntimeSetupError
 lazy from src.controller.bot_config import BotConfig, BotConfigService
 lazy from src.controller.player_info_storage import PlayerInfoSnapshot, PlayerInfoStorage
 lazy from src.core.bot.bot_manager import BotManager
-lazy from src.services.release_update import (
-    SKIP_UPDATE_ENV,
-    clean_update_staging,
-    consume_update_status,
-    prepare_update,
-)
-
-logger = logging.getLogger()
+lazy from src.services.release_update import prepare_update
 
 
 @dataclass(frozen=True)
@@ -60,17 +50,8 @@ def prepare_startup(
     if cancelled.is_set():
         return None
     progress("Checking installation…")
-    if IS_PACKAGED:
-        clean_update_staging()
-        previous_error = consume_update_status()
-        if previous_error:
-            logger.warning("Previous update failed: %s", previous_error)
-        if os.environ.pop(SKIP_UPDATE_ENV, None) != "1":
-            try:
-                if prepare_update(progress):
-                    return PreparedAccounts([], {}, {}, {}, {}, None, update_started=True)
-            except RuntimeSetupError, OSError:
-                logger.warning("Update check failed; continuing with the current installation", exc_info=True)
+    if IS_PACKAGED and prepare_update(progress, cancelled):
+        return PreparedAccounts([], {}, {}, {}, {}, None, update_started=True)
     if cancelled.is_set():
         return None
     validate(progress)

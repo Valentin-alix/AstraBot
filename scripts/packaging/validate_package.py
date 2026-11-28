@@ -64,7 +64,6 @@ def validate_package(folder: Path) -> None:
             LOCALAPPDATA=str(profile / "AppData/Local"),
             PYTHON_DOTENV_DISABLED="1",
             PLAYWRIGHT_BROWSERS_PATH=str(root / "absent-browser-cache"),
-            THISISASTRABOT_SKIP_UPDATE_ONCE="1",
         )
         for name in (
             "OBF_GAME_DIR",

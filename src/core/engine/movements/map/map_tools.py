@@ -1,6 +1,6 @@
 import math
 
-from utils.cache import cache
+from functools import cache
 from DBDofusUnity.dofus_unity_reader.data_center.data_reader import DataReader
 from DBDofusUnity.dofus_unity_reader.game_constants.map_id import (
     MAP_PIXEL_HALF_HEIGHT,

@@ -6,7 +6,7 @@ PROJECT_ROOT = Path(sys.executable).resolve().parent if IS_PACKAGED else Path(__
 BUNDLE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT))
 FRIDA_SCRIPT_PATH = BUNDLE_ROOT / "AnkamaLauncherEmulator/ankama_launcher_emulator/server/dofus3/script.js"
 USER_DATA_ROOT = Path.home() / "AppData" / "Local" / "AstraBot" if IS_PACKAGED else PROJECT_ROOT
-ENV_PATH = PROJECT_ROOT / ".env"
+ENV_PATH = USER_DATA_ROOT / ".env"
 
 
 def ensure_packaged_runtime_data() -> None:

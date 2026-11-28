@@ -1,6 +1,7 @@
 import logging
-from collections import OrderedDict
 from functools import cache
+
+from cachetools import LRUCache
 from pathlib import Path
 
 from ankama_launcher_emulator.utils.environment import resolve_dofus_path
@@ -62,7 +63,7 @@ class WorldMapTileCache(QObject):
     def __init__(self, parent: QObject | None = None, *, loader: WorldMapLoader | None = None) -> None:
         super().__init__(parent)
         self.worlds: dict[int, WorldmapsrootItem] = {}
-        self._images: OrderedDict[TileKey, QImage] = OrderedDict()
+        self._images = LRUCache[TileKey, QImage](32)
         self._pending: set[TileKey] = set()
         self._missing: set[TileKey] = set()
         self._metadata_requested = False
@@ -88,9 +89,7 @@ class WorldMapTileCache(QObject):
     def request(self, world_id: int, number: int) -> QImage | None:
         key = world_id, number
         image = self._images.get(key)
-        if image is not None:
-            self._images.move_to_end(key)
-        else:
+        if image is None:
             self._request(key)
         return image
 
@@ -103,8 +102,6 @@ class WorldMapTileCache(QObject):
         elif response.pixels:
             image = decoded_image(response)
             self._images[key] = image
-            if len(self._images) > 32:
-                self._images.popitem(last=False)
         else:
             self._missing.add(key)
         self.changed.emit()

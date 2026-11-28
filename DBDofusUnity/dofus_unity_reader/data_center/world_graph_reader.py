@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 import msgspec
-from utils.cache import cache
+from functools import cache
 from utils.singleton import Singleton
 
 from DBDofusUnity.consts import STANDALONE_BUNDLES_ROOT

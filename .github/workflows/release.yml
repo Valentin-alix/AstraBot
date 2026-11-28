@@ -41,25 +41,28 @@ jobs:
         env:
           ASTRABOT_GITHUB_CLIENT_ID: ${{ vars.ASTRABOT_GITHUB_CLIENT_ID }}
         run: uv run python -m scripts.packaging.validate_package dist/AstraBot
-      - name: Create release archive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Velopack installer
         shell: pwsh
+        env:
+          PACKAGE_VERSION: 1.0.${{ github.run_number }}
         run: |
-          Compress-Archive -Path dist/AstraBot -DestinationPath dist/AstraBot-${{ steps.version.outputs.version }}.zip -CompressionLevel Optimal
-          $asset = Get-Item dist/AstraBot-${{ steps.version.outputs.version }}.zip
-          if ($asset.Length -gt 2GB) {
-            throw "Release asset exceeds the 2 GiB GitHub limit: $($asset.Length) bytes"
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet tool install --global vpk --version 1.2.161
+          vpk pack --packId ValentinAlix.AstraBot --packVersion $env:PACKAGE_VERSION --packDir dist/AstraBot --mainExe AstraBot.exe --runtime win-x64 --noPortable --outputDir dist/velopack
+          Get-ChildItem dist/velopack -File | Where-Object Length -ge 2GB | ForEach-Object {
+            throw "Release asset exceeds the GitHub size limit: $($_.Name)"
           }
-      - name: Replace latest release
+      - name: Publish Velopack release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          PACKAGE_VERSION: 1.0.${{ github.run_number }}
+          GAME_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $releases = gh release list --limit 1000 --json tagName | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw "Failed to list releases" }
-          if ($releases.tagName -contains 'latest') {
-            gh release delete latest --cleanup-tag --yes
-            if ($LASTEXITCODE -ne 0) { throw "Failed to delete the previous latest release" }
-          }
-          gh release create latest "dist/AstraBot-$env:RELEASE_VERSION.zip" --target $env:GITHUB_SHA --title $env:RELEASE_VERSION --notes "Version $env:RELEASE_VERSION" --latest
-          if ($LASTEXITCODE -ne 0) { throw "Failed to publish the latest release" }
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --token $env:GH_TOKEN --publish --tag "v$env:PACKAGE_VERSION" --releaseName "AstraBot $env:PACKAGE_VERSION (Dofus $env:GAME_VERSION)" --targetCommitish "${{ github.sha }}" --outputDir dist/velopack

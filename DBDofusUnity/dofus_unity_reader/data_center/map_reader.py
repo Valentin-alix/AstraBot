@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from DBDofusUnity.consts import MAPS_ARCHIVE_PATH
 from DBDofusUnity.dofus_unity_reader.models.maps import CellData, MapDataRoot, MapReference
-from utils.cache import cache
+from functools import cache
 from utils.singleton import Singleton
 
 _MAP_CACHE_SIZE = 128

@@ -22,7 +22,7 @@ from DBDofusUnity.dofus_unity_reader.models.datas.titlesroot import Titlesroot
 from DBDofusUnity.dofus_unity_reader.models.datas.ornamentsroot import Ornamentsroot
 
 import msgspec.json
-from utils.cache import cache
+from functools import cache
 from utils.singleton import Singleton
 from DBDofusUnity.consts import DATA_BUNDLES_ROOT
 from DBDofusUnity.dofus_unity_reader.data_center.i18n import I18N

@@ -30,12 +30,6 @@ AstraBot installation folder before extracting the archive again:
 2. Open **Windows Security → Virus & threat protection → Manage settings →
    Exclusions → Add or remove exclusions → Add an exclusion → Folder** and select it.
 3. Extract the release ZIP into that folder and run `AstraBot.exe`.
-
-Only do this for a release you trust: Defender's real-time scanning will exclude
-that folder. Keep the exclusion limited to AstraBot's folder; do not exclude all
-Downloads or disable antivirus protection.
-[Microsoft's exclusion instructions](https://support.microsoft.com/en-gb/windows/security/threat-malware-protection/virus-and-threat-protection-in-the-windows-security-app).
-
 ### From source
 
 Requirements: **Windows x64**, **CPython 3.15.2** (standard build with the GIL), **Git LFS**, and **uv**.

@@ -1,6 +1,7 @@
 import logging
-from collections import OrderedDict
 from functools import cache
+
+from cachetools import LRUCache
 from pathlib import Path
 from typing import Literal
 
@@ -69,8 +70,7 @@ class ItemIconCache(QObject):
     ) -> None:
         super().__init__(parent)
         self._max_bytes = max_bytes
-        self._bytes = 0
-        self._images: OrderedDict[int, QImage] = OrderedDict()
+        self._images = LRUCache[int, QImage](max_bytes, getsizeof=QImage.sizeInBytes)
         self._pending: set[int] = set()
         self._request_priority = 0
         self._missing: set[int] = set()
@@ -87,10 +87,7 @@ class ItemIconCache(QObject):
         self._pool.waitForDone()
 
     def cached(self, icon_id: int) -> QImage | None:
-        image = self._images.get(icon_id)
-        if image is not None:
-            self._images.move_to_end(icon_id)
-        return image
+        return self._images.get(icon_id)
 
     def request(self, icon_id: int) -> QImage | None:
         image = self.cached(icon_id)
@@ -108,11 +105,10 @@ class ItemIconCache(QObject):
         if image.isNull():
             self._missing.add(icon_id)
             return
-        self._images[icon_id] = image
-        self._bytes += image.sizeInBytes()
-        while self._bytes > self._max_bytes and self._images:
-            _, evicted = self._images.popitem(last=False)
-            self._bytes -= evicted.sizeInBytes()
+        if image.sizeInBytes() > self._max_bytes:
+            self._images.clear()
+        else:
+            self._images[icon_id] = image
         self.ready.emit(icon_id, image)
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -12,15 +11,10 @@ if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "--icon-worke
     run_icon_worker()
     raise SystemExit(0)
 
-if (
-    __name__ == "__main__"
-    and getattr(sys, "frozen", False)
-    and os.environ.pop("THISISASTRABOT_INSTALL_UPDATE", None)
-):
-    from scripts.packaging.install_update import main as install_update
+if __name__ == "__main__" and getattr(sys, "frozen", False):
+    import velopack
 
-    install_update()
-    raise SystemExit(0)
+    velopack.App().run()
 
 from src.utils.project_paths import BUNDLE_ROOT
 lazy import src.services.game_version as game_version

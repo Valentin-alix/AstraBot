@@ -4,7 +4,7 @@ from dataclasses import field as dataclass_field
 from itertools import chain
 
 import numpy as np
-from utils.cache import cache
+from functools import cache
 
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_mapping import DiscoveredMessageMatch
 from DBDofusUnity.proto_mapper_assembly.interfaces.matching import MatchingWorkspace

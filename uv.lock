@@ -57,6 +57,7 @@ name = "astrabot"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cachetools", marker = "sys_platform == 'win32'" },
     { name = "filelock", marker = "sys_platform == 'win32'" },
     { name = "frida", marker = "sys_platform == 'win32'" },
     { name = "msgspec", marker = "sys_platform == 'win32'" },
@@ -75,11 +76,11 @@ dependencies = [
     { name = "schedule", marker = "sys_platform == 'win32'" },
     { name = "thrift", marker = "sys_platform == 'win32'" },
     { name = "unitypy", marker = "sys_platform == 'win32'" },
+    { name = "velopack", marker = "sys_platform == 'win32'" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "cachetools", marker = "sys_platform == 'win32'" },
     { name = "frida-tools", marker = "sys_platform == 'win32'" },
     { name = "idapro", marker = "sys_platform == 'win32'" },
     { name = "numpy", marker = "sys_platform == 'win32'" },
@@ -105,6 +106,7 @@ profiling = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cachetools", specifier = "==8.0.3" },
     { name = "filelock", specifier = "==4.3.1" },
     { name = "frida", specifier = "==17.28.0" },
     { name = "msgspec", specifier = "==0.22.0" },
@@ -123,11 +125,11 @@ requires-dist = [
     { name = "schedule", specifier = "==1.2.2" },
     { name = "thrift", specifier = "==0.24.0" },
     { name = "unitypy", specifier = ">=1.25.4" },
+    { name = "velopack", specifier = "==1.2.161" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "cachetools", specifier = "==8.0.3" },
     { name = "frida-tools", specifier = "==14.13.2" },
     { name = "idapro", specifier = ">=0.0.7" },
     { name = "numpy", specifier = "==2.5.5" },
@@ -987,6 +989,17 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz", hash = "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63", size = 458972, upload-time = "2026-09-15T19:29:36.253Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl", hash = "sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3", size = 135717, upload-time = "2026-09-15T19:29:34.577Z" },
+]
+
+[[package]]
+name = "velopack"
+version = "1.2.161"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/aa/bf2bcea59cc586c9fdd079640f8534d78f36d59e5bfb6395fb5746d0d786/velopack-1.2.161.tar.gz", hash = "sha256:beb7655e1ad42f1fe3d9dcbf2694fb255b13d0131ea03579bbe55ba3accd9b85", size = 129748, upload-time = "2026-09-29T11:41:11.76Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/c8/38b2243592aa69b3aba5fd01caaa7fc67d1f483b79e9d8b7f0e009afc5ea/velopack-1.2.161-cp38-abi3-win32.whl", hash = "sha256:c42ceb4ded31edc94dee92d80e6298e3e8af5100d5c28f49938bdb550d947011", size = 1083500, upload-time = "2026-09-29T11:41:07.211Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/4a/1906caadfbada25e987f8f20ec61667221e73ab0d01c1164bbcb33b10e44/velopack-1.2.161-cp38-abi3-win_amd64.whl", hash = "sha256:3a85b4a39c7644d06dafa44bd197d1e88d429f3f05ead57031552cf17ffcf36e", size = 1363140, upload-time = "2026-09-29T11:41:08.642Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/2c/5b3dff114b232c89770fad264d7db66657654479ca8ecae7a76d7cf36f6f/velopack-1.2.161-cp38-abi3-win_arm64.whl", hash = "sha256:5d410ff340fb1346a38a96a7617633983be1bbefbdba9def0b8c1545dec06856", size = 1296839, upload-time = "2026-09-29T11:41:10.348Z" },
 ]
 
 [[package]]

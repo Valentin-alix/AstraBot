@@ -8,7 +8,7 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.dump_cs_message import Declar
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_category import FieldTypeShape
 from DBDofusUnity.proto_mapper_assembly.interfaces.field_comparison import FieldComparisonKey
 from DBDofusUnity.proto_mapper_assembly.scoring.primitives import ratio_similarity
-from utils.cache import cache
+from functools import cache
 
 
 def function_similarity_from_keys(left: FunctionSimilarityKey, right: FunctionSimilarityKey) -> float:

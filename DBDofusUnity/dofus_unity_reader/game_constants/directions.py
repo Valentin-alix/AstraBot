@@ -1,6 +1,6 @@
 from enum import IntEnum
 
-from utils.cache import cache
+from functools import cache
 
 
 class DirectionsEnum(IntEnum):
