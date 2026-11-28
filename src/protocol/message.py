@@ -1,10 +1,12 @@
 import datetime
 from typing import Any
 
-from src.utils.dataclass_utils import AppModel
+from pydantic import BaseModel, ConfigDict
 
 
-class MessageInfo(AppModel):
+class MessageInfo(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     received_time: datetime.datetime
     from_server: bool
     sub_msg_name: str

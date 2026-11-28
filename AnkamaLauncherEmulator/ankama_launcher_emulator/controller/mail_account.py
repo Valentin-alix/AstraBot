@@ -1,4 +1,3 @@
-from utils.local_json import read_local_model
 import logging
 import re
 from datetime import datetime, timezone
@@ -39,7 +38,7 @@ class MailAccountController(metaclass=Singleton):
         with self._LOCK:
             if not MAIL_ACCOUNTS_STORAGE_PATH.exists():
                 return MailAccountsFile()
-            return read_local_model(MAIL_ACCOUNTS_STORAGE_PATH, MailAccountsFile)
+            return MailAccountsFile.model_validate_json(MAIL_ACCOUNTS_STORAGE_PATH.read_text(encoding="utf-8"))
 
     def _save(self, accounts_file: MailAccountsFile) -> None:
         atomic_write_text(MAIL_ACCOUNTS_STORAGE_PATH, accounts_file.model_dump_json(indent=2))

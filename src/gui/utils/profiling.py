@@ -1,15 +1,23 @@
 import functools
+import os
 import threading
 from collections.abc import Callable
 from time import perf_counter
 from typing import Final, ParamSpec, TypeVar
+
 from src.utils.project_paths import IS_PACKAGED
-from utils.env_config import get_bool_from_env
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
-PROFILING_ENABLED: Final = not IS_PACKAGED and get_bool_from_env("PROFILING_ENABLED")
+
+def _profiling_enabled() -> bool:
+    if IS_PACKAGED:
+        return False
+    return bool(os.environ.get("PROFILING_ENABLED", 0))
+
+
+PROFILING_ENABLED: Final = _profiling_enabled()
 
 
 def profiled_slot(func: Callable[P, R], threshold_ms: int = 1) -> Callable[P, R]:

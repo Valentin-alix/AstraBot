@@ -24,7 +24,6 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.runtime_data import (
 )
 from DBDofusUnity.proto_mapper_assembly.runtime.proto_schema import get_obfuscated_proto_schema_fingerprint
 from src.core.config import ENABLE_MSG_CAPTURE
-from utils.protobuf import is_repeated_field
 from utils.singleton import Singleton
 
 MAX_COUNT_BY_NAME = 1_500
@@ -203,7 +202,7 @@ class RuntimeDataStore(metaclass=Singleton):
             if is_any_msg and _field.name == "value":
                 continue
             value = getattr(msg, _field.name)
-            if is_repeated_field(_field):
+            if _field.is_repeated:
                 map_entry = _field.message_type
                 is_map_field = map_entry is not None and map_entry.GetOptions().map_entry
                 if len(value) == 0:

@@ -25,7 +25,6 @@ from DBDofusUnity.proto_mapper_assembly.interfaces.game_mappings import (
 from DBDofusUnity.proto_mapper_assembly.runtime.runtime_store import RuntimeDataStore
 from src.protocol.message import MessageInfo
 from src.protocol import initialize_protocol
-from utils.protobuf import is_repeated_field
 
 
 logger = logging.getLogger()
@@ -290,7 +289,7 @@ def set_field_from_mapping_field(
     output_msg_field_name: str,
     msg_mappings: ProtoToRealMapping | ProtoToObfMapping,
 ) -> None:
-    if is_repeated_field(msg_field):
+    if msg_field.is_repeated:
         output_field_value = getattr(output_msg, output_msg_field_name)
         map_entry = msg_field.message_type
         is_map_field = map_entry is not None and map_entry.GetOptions().map_entry

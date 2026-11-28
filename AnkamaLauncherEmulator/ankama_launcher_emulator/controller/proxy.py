@@ -12,7 +12,6 @@ from ankama_launcher_emulator.utils.atomic_file import (
 )
 
 from src.utils.runtime_support import RuntimeSetupError
-from utils.local_json import read_local_model
 from utils.singleton import Singleton
 
 
@@ -23,7 +22,7 @@ class ProxyController(metaclass=Singleton):
     def _load_proxies(self) -> ProxiesFile:
         if not PROXIES_STORAGE_PATH.exists():
             return ProxiesFile()
-        return read_local_model(PROXIES_STORAGE_PATH, ProxiesFile)
+        return ProxiesFile.model_validate_json(PROXIES_STORAGE_PATH.read_text(encoding="utf-8"))
 
     def _save_proxies(self, proxies_file: ProxiesFile) -> None:
         atomic_write_text(PROXIES_STORAGE_PATH, proxies_file.model_dump_json(indent=2))

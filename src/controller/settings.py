@@ -7,12 +7,10 @@ from ankama_launcher_emulator.controller.bot_storage import BotStorageController
 from ankama_launcher_emulator.controller.proxy import ProxyController
 from ankama_launcher_emulator.controller.schedule_profile import ScheduleProfileController
 from ankama_launcher_emulator.utils.atomic_file import acquire_file_lock, atomic_write_text
-from pydantic import ValidationError
 
 from src.core.config import BehaviorSettings, GlobalSettings
 from src.utils.project_paths import USER_DATA_ROOT
 from src.utils.runtime_support import RuntimeSetupError
-from utils.local_json import read_local_model
 from utils.singleton import Singleton
 
 SETTINGS_PATH = USER_DATA_ROOT / "resources" / "settings.json"
@@ -36,23 +34,18 @@ class SettingsService(metaclass=Singleton):
     def _load_settings(self) -> GlobalSettings:
         try:
             payload: object = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            return read_local_model(SETTINGS_PATH, GlobalSettings)
+            if not isinstance(payload, dict):
+                return GlobalSettings.model_validate(payload)
+            payload = cast(dict[str, object], payload)
+            behaviors = payload.get("behaviors")
+            if not isinstance(behaviors, dict) or "do_quest" not in behaviors:
+                return GlobalSettings.model_validate(payload)
 
-        if not isinstance(payload, dict):
-            return read_local_model(SETTINGS_PATH, GlobalSettings)
-        payload = cast(dict[str, object], payload)
-        behaviors = payload.get("behaviors")
-        if not isinstance(behaviors, dict) or "do_quest" not in behaviors:
-            return read_local_model(SETTINGS_PATH, GlobalSettings)
-
-        migrated_payload = dict(payload)
-        migrated_behaviors = dict(cast(dict[str, object], behaviors))
-        del migrated_behaviors["do_quest"]
-        migrated_payload["behaviors"] = migrated_behaviors
-        try:
-            settings = GlobalSettings.model_validate(migrated_payload)
-        except ValidationError as error:
+            migrated_behaviors = dict(cast(dict[str, object], behaviors))
+            del migrated_behaviors["do_quest"]
+            payload["behaviors"] = migrated_behaviors
+            settings = GlobalSettings.model_validate(payload)
+        except ValueError as error:
             message = f"Invalid local file: {SETTINGS_PATH.name}. Fix it or restore a backup."
             raise RuntimeSetupError(message) from error
         self._save(settings)

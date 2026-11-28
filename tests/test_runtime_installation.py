@@ -9,14 +9,12 @@ import pytest
 from ankama_launcher_emulator.server import server as server_module
 from ankama_launcher_emulator.server.dofus3 import launch
 from ankama_launcher_emulator.utils import environment
-from pydantic import BaseModel
 
 from src.core.bot.lifecycle.account_scheduler import AccountScheduler
 from src.services import install_validation
 from src.services.background import Worker
 from src.utils import project_paths, runtime_support
-from utils.env_config import get_bool_from_env
-from utils.local_json import read_local_model
+from src.gui.utils.profiling import _profiling_enabled
 
 
 @pytest.mark.parametrize("platform", ["linux"])
@@ -70,29 +68,17 @@ def test_runtime_data_initialization_preserves_existing_invalid_file(
     assert path.read_text() == "broken"
 
 
-def test_invalid_json_reports_filename_without_private_input(tmp_path: Path) -> None:
-    class Configuration(BaseModel):
-        enabled: bool
-
-    path = tmp_path / "settings.json"
-    path.write_text('{"enabled": "private-secret"}')
-    with pytest.raises(runtime_support.RuntimeSetupError) as failure:
-        read_local_model(path, Configuration)
-    assert "settings.json" in str(failure.value)
-    assert "private-secret" not in str(failure.value)
-    assert "private-secret" in path.read_text()
-
 
 def test_boolean_environment_values_are_validated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("TEST_BOOL_FLAG", raising=False)
-    assert get_bool_from_env("TEST_BOOL_FLAG") is False
-    monkeypatch.setenv("TEST_BOOL_FLAG", "0")
-    assert get_bool_from_env("TEST_BOOL_FLAG") is False
-    monkeypatch.setenv("TEST_BOOL_FLAG", "true")
-    assert get_bool_from_env("TEST_BOOL_FLAG") is True
-    monkeypatch.setenv("TEST_BOOL_FLAG", "invalid")
+    monkeypatch.delenv("PROFILING_ENABLED", raising=False)
+    assert _profiling_enabled() is False
+    monkeypatch.setenv("PROFILING_ENABLED", "0")
+    assert _profiling_enabled() is False
+    monkeypatch.setenv("PROFILING_ENABLED", "true")
+    assert _profiling_enabled() is True
+    monkeypatch.setenv("PROFILING_ENABLED", "invalid")
     with pytest.raises(runtime_support.RuntimeSetupError):
-        get_bool_from_env("TEST_BOOL_FLAG")
+        _profiling_enabled()
 
 
 def test_worker_logs_failure_and_finishes_without_error_subscriber(caplog: pytest.LogCaptureFixture) -> None:

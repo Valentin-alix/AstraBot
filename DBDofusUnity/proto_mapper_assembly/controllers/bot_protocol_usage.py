@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from google.protobuf.descriptor import Descriptor, FieldDescriptor
-from utils.protobuf import is_repeated_field
 
 from DBDofusUnity.consts import BOT_SRC_ROOT, PROTOS_ROOT
 from DBDofusUnity.proto_mapper_assembly.helpers.non_obf_names import build_filtered_message_namespace
@@ -193,7 +192,7 @@ class _Analyzer:
             _one("proto", descriptor.message_type.full_name)
             if descriptor.message_type and descriptor.message_type.full_name in self.descriptors else _EMPTY
         )
-        if is_repeated_field(descriptor):
+        if descriptor.is_repeated:
             return _sequence(values)
         return values
 

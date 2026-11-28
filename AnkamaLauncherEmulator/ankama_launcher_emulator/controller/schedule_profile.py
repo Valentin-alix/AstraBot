@@ -1,4 +1,3 @@
-from utils.local_json import read_local_model
 from threading import RLock
 import re
 
@@ -21,7 +20,7 @@ class ScheduleProfileController(metaclass=Singleton):
         with self._LOCK:
             if not SCHEDULE_PROFILES_PATH.exists():
                 return {}
-            return read_local_model(SCHEDULE_PROFILES_PATH, ScheduleProfiles).profiles
+            return ScheduleProfiles.model_validate_json(SCHEDULE_PROFILES_PATH.read_text(encoding="utf-8")).profiles
 
     def get_profile(self, profile_id: str) -> ScheduleProfile | None:
         return self.get_all_profiles().get(profile_id)

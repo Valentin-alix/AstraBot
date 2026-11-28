@@ -4,8 +4,6 @@ from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from utils.env_config import get_optional_path
-
 from ankama_launcher_emulator.consts import ASAR_PATH
 from ankama_launcher_emulator.interfaces.ankama_release import (
     PackageJson,
@@ -39,9 +37,9 @@ def get_zaap_version() -> str:
 
 
 def _get_zaap_data_path() -> str:
-    configured_path = get_optional_path("ZAAP_PATH")
-    if configured_path is not None:
-        return str(configured_path)
+    configured_path = os.environ.get("ZAAP_PATH")
+    if configured_path:
+        return str(Path(configured_path).expanduser())
     return os.path.join(os.environ["APPDATA"], "zaap")
 
 
