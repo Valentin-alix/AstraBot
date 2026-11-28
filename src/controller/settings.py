@@ -1,7 +1,5 @@
-import json
 import os
 from threading import RLock
-from typing import cast
 
 from ankama_launcher_emulator.controller.bot_storage import BotStorageController
 from ankama_launcher_emulator.controller.proxy import ProxyController
@@ -33,23 +31,10 @@ class SettingsService(metaclass=Singleton):
 
     def _load_settings(self) -> GlobalSettings:
         try:
-            payload: object = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-            if not isinstance(payload, dict):
-                return GlobalSettings.model_validate(payload)
-            payload = cast(dict[str, object], payload)
-            behaviors = payload.get("behaviors")
-            if not isinstance(behaviors, dict) or "do_quest" not in behaviors:
-                return GlobalSettings.model_validate(payload)
-
-            migrated_behaviors = dict(cast(dict[str, object], behaviors))
-            del migrated_behaviors["do_quest"]
-            payload["behaviors"] = migrated_behaviors
-            settings = GlobalSettings.model_validate(payload)
+            return GlobalSettings.model_validate_json(SETTINGS_PATH.read_text(encoding="utf-8"))
         except ValueError as error:
             message = f"Invalid local file: {SETTINGS_PATH.name}. Fix it or restore a backup."
             raise RuntimeSetupError(message) from error
-        self._save(settings)
-        return settings
 
     def _save(self, settings: GlobalSettings) -> None:
         with acquire_file_lock(SETTINGS_PATH):

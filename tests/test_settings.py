@@ -42,19 +42,14 @@ def test_invalid_settings_are_reported_without_resetting_file() -> None:
     assert "invalid" in settings_module.SETTINGS_PATH.read_text()
 
 
-def test_legacy_quest_setting_is_removed_and_other_settings_are_preserved() -> None:
-    settings_module.SETTINGS_PATH.write_text(
-        '{"behaviors":{"do_quest":true,"do_craft":true},"sonji_api_key":"keep"}',
-        encoding="utf-8",
-    )
+def test_removed_quest_setting_is_rejected_without_rewriting_file() -> None:
+    payload = '{"behaviors":{"do_quest":true,"do_craft":true}}'
+    settings_module.SETTINGS_PATH.write_text(payload, encoding="utf-8")
 
-    settings = SettingsService().get()
+    with pytest.raises(RuntimeSetupError, match="Invalid local file: settings.json"):
+        SettingsService().get()
 
-    assert settings.behaviors.do_craft
-    assert settings.sonji_api_key == "keep"
-    persisted = settings_module.SETTINGS_PATH.read_text(encoding="utf-8")
-    assert "do_quest" not in persisted
-    assert GlobalSettings.model_validate_json(persisted) == settings
+    assert settings_module.SETTINGS_PATH.read_text(encoding="utf-8") == payload
 
 
 def test_service_key_precedence_and_concurrent_updates(monkeypatch: pytest.MonkeyPatch) -> None:
